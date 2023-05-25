@@ -43,14 +43,18 @@ func (c *CatCommand) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&c.mew, "say a mew", false, "gotta mew before purring")
 }
 
-func (*CatCommand) Execute(_ context.Context, _ *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
+func (*CatCommand) Execute(_ context.Context, _ *flag.FlagSet, subcommandArgs ...interface{}) subcommands.ExitStatus {
 
-	for _, arg := range args {
+	//templates := gatherTemplates()
+
+	for _, arg := range subcommandArgs {
 		// search for each named template
-		if arg == "kitty" {
-			fmt.Println("kitty!")
-		}
+		fmt.Print(arg)
 		// print it to stdout
 	}
 	return subcommands.ExitSuccess
+}
+
+func gatherTemplates() {
+
 }
