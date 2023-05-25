@@ -5,13 +5,32 @@ import (
 	"flag"
 	"fmt"
 	"github.com/google/subcommands"
+	"github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
 	templcommands "playtechnique.io/templ/cmds/CatCommand"
 )
 
+func init() {
+	lvl, ok := os.LookupEnv("TEMPL_LOG_LEVEL")
+	// LOG_LEVEL not set, let's default to debug
+	if !ok {
+		lvl = "info"
+	}
+	// parse string, this is built-in feature of logrus
+	ll, err := logrus.ParseLevel(lvl)
+	if err != nil {
+		ll = logrus.DebugLevel
+	}
+	// set global log level
+	logrus.SetLevel(ll)
+}
+
+// Main identifies the templates directory, switches working directories into it and invokes the subcommand.
 func main() {
 	ctx := context.Background()
+	logrus.Info("roflcopter")
+	logrus.Debug("hippololamus")
 
 	configDir := getConfigDirectory()
 	ChangeDir(configDir)
