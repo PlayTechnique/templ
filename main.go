@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/google/subcommands"
 	"github.com/sirupsen/logrus"
+	"io"
 	"os"
 	"path/filepath"
 	templcommands "playtechnique.io/templ/cmds/CatCommand"
@@ -15,32 +16,46 @@ func init() {
 	lvl, ok := os.LookupEnv("TEMPL_LOG_LEVEL")
 	// LOG_LEVEL not set, let's default to debug
 	if !ok {
-		lvl = "info"
+		lvl = "error"
 	}
+
 	// parse string, this is built-in feature of logrus
 	ll, err := logrus.ParseLevel(lvl)
 	if err != nil {
 		ll = logrus.DebugLevel
 	}
+	// set file names and line number to appear in log messages
+	logrus.SetReportCaller(true)
+
 	// set global log level
 	logrus.SetLevel(ll)
+
 }
 
 // Main identifies the templates directory, switches working directories into it and invokes the subcommand.
 func main() {
 	ctx := context.Background()
-	logrus.Info("roflcopter")
-	logrus.Debug("hippololamus")
+
+	logrus.Info("Starting templ")
 
 	configDir := getConfigDirectory()
 	ChangeDir(configDir)
+
+	oldHelp := subcommands.DefaultCommander.Explain
+
+	help := func(w io.Writer) {
+		fmt.Fprintf(w, "Env Vars: LOG_LEVEL TEMPL_DIR\n")
+		oldHelp(w)
+
+	}
+	subcommands.DefaultCommander.Explain = help
 
 	subcommands.Register(subcommands.HelpCommand(), "help")
 	subcommands.Register(&templcommands.CatCommand{}, "templates")
 
 	// Mystical. This seems to parse the subcommand flags.
 	flag.Parse()
-	os.Exit(int(subcommands.Execute(ctx, configDir, os.Args)))
+	os.Exit(int(subcommands.Execute(ctx, os.Args)))
 }
 
 // Interrogates the environment variable TEMPL_DIR for a directory of templates.

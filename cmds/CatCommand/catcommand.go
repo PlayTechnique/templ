@@ -14,7 +14,6 @@ type CatCommand struct {
 	TemplateName string
 	synopsis     string
 	usage        string
-	mew          bool
 }
 
 var catcommand CatCommand
@@ -46,30 +45,31 @@ func (c *CatCommand) SetFlags(_ *flag.FlagSet) {
 
 }
 
-func (*CatCommand) Execute(_ context.Context, _ *flag.FlagSet, subcommandArgs ...interface{}) subcommands.ExitStatus {
+func (*CatCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 
-	logrus.Debug(subcommandArgs...)
+	logrus.Debug(f)
+	catArgs := makeSet(f.Args())
+	logrus.Debug("catArgs: ", catArgs)
 
-	catArgs := makeSet(subcommandArgs[2:])
-
-	//For each arg in the set, search the current working directory to see if a file exists with it as the name
-	// search this directory for a file with the name of arg
+	//For each file named in the args to cat, search the current working directory to see if it exists
 	matchingfiles, err := FindFilesByName(".", catArgs)
+	logrus.Debug("Found files: ", matchingfiles)
+
 	if err != nil {
 		logrus.Error(err)
 		return subcommands.ExitFailure
 	}
 
 	for _, file := range matchingfiles {
-		f, err := os.Open(file)
+		contents, err := os.ReadFile(file)
+
 		if err != nil {
 			logrus.Error(err)
 			return subcommands.ExitFailure
 		}
-		defer f.Close()
 
 		// Print the contents of the file
-		_, err = fmt.Print(f)
+		_, err = fmt.Print(string(contents))
 
 		if err != nil {
 			logrus.Error(err)
@@ -90,11 +90,14 @@ func (*CatCommand) Execute(_ context.Context, _ *flag.FlagSet, subcommandArgs ..
 // or an error
 func FindFilesByName(dir string, names map[string]struct{}) ([]string, error) {
 	var foundFiles []string
+	logrus.Debug("Outside filepath.Walk function names: ", names)
 
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
+
+		logrus.Debug("Inside filepath.Walk function names: ", names)
 
 		// If the file's name is in the set of names
 		if _, ok := names[info.Name()]; ok {
@@ -116,12 +119,14 @@ func FindFilesByName(dir string, names map[string]struct{}) ([]string, error) {
 // arr: an array of anything
 // Returns:
 // a set of strings. Go doesn't have a native set, so use a map with empty structs as the values.
-func makeSet(arr []interface{}) map[string]struct{} {
+func makeSet(arr []string) map[string]struct{} {
+
 	set := make(map[string]struct{})
-	for _, elem := range arr {
-		if str, ok := elem.(string); ok {
-			set[str] = struct{}{}
-		}
+
+	for _, filename := range arr {
+		logrus.Debug("filename: ", filename)
+		set[filename] = struct{}{}
 	}
+
 	return set
 }
