@@ -81,6 +81,13 @@ func (*CatCommand) Execute(_ context.Context, _ *flag.FlagSet, subcommandArgs ..
 	return subcommands.ExitSuccess
 }
 
+// FindFilesByName searches a directory for file names that match those provided in a set of strings.
+// Arguments:
+// dir: the directory to search
+// names: a set of filenames to search for
+// Returns:
+// an array of strings, each of which is the path to a file that was found.
+// or an error
 func FindFilesByName(dir string, names map[string]struct{}) ([]string, error) {
 	var foundFiles []string
 
@@ -104,7 +111,11 @@ func FindFilesByName(dir string, names map[string]struct{}) ([]string, error) {
 	return foundFiles, nil
 }
 
-// MakeSet creates a set from an array of strings.
+// MakeSet creates a set from an array of anything.
+// Arguments:
+// arr: an array of anything
+// Returns:
+// a set of strings. Go doesn't have a native set, so use a map with empty structs as the values.
 func makeSet(arr []interface{}) map[string]struct{} {
 	set := make(map[string]struct{})
 	for _, elem := range arr {
