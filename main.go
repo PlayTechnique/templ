@@ -9,7 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	templcommands "playtechnique.io/templ/cmds/CatCommand"
+	"playtechnique.io/templ/cmds/templcommands"
 )
 
 func init() {
