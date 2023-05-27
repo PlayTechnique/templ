@@ -2,74 +2,32 @@ package templcommands
 
 import (
 	"github.com/stretchr/testify/assert"
-	"os"
 	"testing"
 )
 
-type TestSetup struct {
-	Files map[string]struct{}
-}
-
-// Creates a temp directory and populates it with files.
-func (t TestSetup) SetupTests() (tempDir string) {
-
-	// Create a directory with some files in it
-	tempDir, err := os.MkdirTemp("", "templ_test")
-
-	if err != nil {
-		panic(err)
-	}
-
-	err = os.Chdir(tempDir)
-
-	if err != nil {
-		panic(err)
-	}
-
-	// Create a directory with some files in it
-	for filename := range t.Files {
-		destFile := tempDir + filename
-		_, err := os.Create(destFile)
-
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	return tempDir
-}
-
-func TearDown(directories []string) {
-
-	os.Chdir("/tmp")
-	for _, directory := range directories {
-		err := os.RemoveAll(directory)
-		if err != nil {
-			panic(err)
-		}
-	}
-
-}
-
 func TestFindFilesByNameFindsFilesByName(t *testing.T) {
-	testFiles := map[string]struct{}{
-		"test1": {},
-		"test2": {},
-		"test3": {},
+	testCases := []TestSetup{
+		{name: "No argument given", setupFiles: TestFileStructure{directories: []string{}, files: []string{}}, startDirs: []string{"./"}, want: []string{}},
+
+		{name: "Only the top level dir", setupFiles: TestFileStructure{directories: []string{"./"}, files: []string{}}, startDirs: []string{"./"}, want: []string{}},
+
+		{name: "One test file in top dir", setupFiles: TestFileStructure{directories: []string{"./"}, files: []string{"./test1"}}, startDirs: []string{"./"}, want: []string{"test1"}},
+
+		{name: "One test file one dir down", setupFiles: TestFileStructure{directories: []string{"./", "./a_directory"}, files: []string{"./a_directory/test1"}}, startDirs: []string{"./"}, want: []string{"a_directory/test1"}},
 	}
 
-	var testInfo = TestSetup{Files: testFiles}
+	for _, tt := range testCases {
+		tempdir := tt.Setup()
+		defer tt.TearDown(tempdir)
 
-	tempDir := testInfo.SetupTests()
+		filesToFind := makeSet(tt.want)
+		// A little prefactoring; if we ever have more than 1 temp dir e.g. when we
+		// support multiple template directories, we're already set up for.
 
-	// A little prefactoring; if we ever have more than 1 temp dir e.g. when we
-	// support multiple template directories, we're already set up for.
-	collectionOfTestDir := []string{tempDir}
-	defer TearDown(collectionOfTestDir)
+		foundFiles, err := findFilesByName(tt.startDirs[0], filesToFind)
 
-	foundFiles, err := FindFilesByName(".", testFiles)
-
-	assert.Nil(t, err)
-	assert.Equal(t, len(testFiles), len(foundFiles))
+		assert.Nil(t, err)
+		assert.Equal(t, foundFiles, tt.want)
+	}
 
 }
