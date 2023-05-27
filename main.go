@@ -41,8 +41,8 @@ func main() {
 	configDir := getConfigDirectory()
 	ChangeDir(configDir)
 
+	//Super cheap way to get documentation into the usage message.
 	oldHelp := subcommands.DefaultCommander.Explain
-
 	help := func(w io.Writer) {
 		fmt.Fprintf(w, "Env Vars: LOG_LEVEL TEMPL_DIR\n")
 		oldHelp(w)
@@ -52,6 +52,7 @@ func main() {
 
 	subcommands.Register(subcommands.HelpCommand(), "help")
 	subcommands.Register(&templcommands.CatCommand{}, "templates")
+	subcommands.Register(&templcommands.ListCommand{}, "templates")
 
 	// Mystical. This seems to parse the subcommand flags.
 	flag.Parse()
