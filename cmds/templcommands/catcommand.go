@@ -51,7 +51,8 @@ func (*CatCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{})
 	logrus.Debug("catArgs: ", catArgs)
 
 	//For each file named in the args to cat, search the current working directory to see if it exists
-	matchingfiles, err := FindFilesByName(".", catArgs)
+	// TODO: change the signature of findFilesByName to take a slice of strings
+	matchingfiles, err := findFilesByName(".", catArgs)
 	logrus.Debug("Found files: ", matchingfiles)
 
 	if err != nil {
