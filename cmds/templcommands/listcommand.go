@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"github.com/google/subcommands"
 	"github.com/sirupsen/logrus"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -51,37 +49,4 @@ func (*ListCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 	fmt.Println(strings.Join(files, "\n"))
 
 	return err
-}
-
-func listFiles(topLevelDirs []string) ([]string, subcommands.ExitStatus) {
-	allFileNames := make([]string, 0)
-
-	//For each file named in the args to cat, search the current working directory to see if it exists
-	for _, root := range topLevelDirs {
-		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-
-			filename, err := filepath.Rel(root, path)
-
-			if err != nil {
-				logrus.Error("Error calculating relative path:", err)
-				return err
-			}
-
-			// The first file node has a name of '.' for the pwd.
-			// It's quicker to check that for skipping than to check the root variable.
-			if !info.IsDir() {
-				allFileNames = append(allFileNames, filename)
-			}
-			return nil
-		})
-
-		if err != nil {
-			logrus.Error(err)
-			return nil, subcommands.ExitFailure
-		}
-	}
-
-	logrus.Debug("Found files: ", allFileNames)
-
-	return allFileNames, subcommands.ExitSuccess
 }
