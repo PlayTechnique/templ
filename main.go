@@ -18,7 +18,7 @@ func init() {
 	lvl, ok := os.LookupEnv("TEMPL_LOG_LEVEL")
 	// LOG_LEVEL not set, let's default to debug
 	if !ok {
-		lvl = "error"
+		lvl = "warn"
 	}
 
 	// parse string, this is built-in feature of logrus
@@ -37,7 +37,7 @@ func init() {
 // Main identifies the templates directory, switches working directories into it and invokes the subcommand.
 func main() {
 	ctx := context.Background()
-	tflags := flag.NewFlagSet("templFlags", flag.ContinueOnError)
+	tflags := flag.NewFlagSet("templFlags", flag.ExitOnError)
 	// Create a copy of os.Args
 	argsCopy := append([]string(nil), os.Args...)
 

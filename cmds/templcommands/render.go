@@ -8,14 +8,19 @@ import (
 	"fmt"
 	"github.com/google/subcommands"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
+	"log"
 	"os"
 	_ "os"
+	"text/template"
 )
 
+type templatePath string
+type templateVariablesPath string
+
 type RenderCommand struct {
-	dynamicflags        []string
 	templateName        string
-	templateconfigpaths map[string]string
+	templateconfigpaths map[templatePath]templateVariablesPath
 	synopsis            string
 	usage               string
 	strict              bool
@@ -31,13 +36,28 @@ func init() {
 	rendercommand.templateName = "render"
 	rendercommand.synopsis = "render a template"
 	rendercommand.usage = `
-render [--<template-name>-config=<value> --no-strict] <name of a template file>
-Output the contents of named, known template files.
+render [--<template-name>-config=<value> --no-strict] <name of at least one template file from the list>
 
-All variables in the template must be populated by default. To turn this behaviour off, use the --no-strict option.
+Output the contents of named, known template files. You supply the variables through a yaml file. It should contain a map:
 
-If the name of the template  is "roflcopter", then the option --roflcopter-config=<path to config file> will be used
-to specify the path to the config file for the template.
+Imagine a template that reads, in a template file called examples/hello.txt
+Hello {{ .name }}
+
+Then the yaml file, in path $HOME/hello.yaml should read:
+---
+name: "World"
+
+Then you run:
+render --examples/hello.txt-config=$HOME/hello.yaml examples/hello.txt
+
+And the output is:
+Hello World
+
+
+To find out the names of available templates, use the list subcommand.
+
+All variables in the template must be populated in the template config file. To turn this behaviour off, use the --no-strict option.
+
 `
 
 }
@@ -58,24 +78,67 @@ func (r RenderCommand) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&r.strict, "no-strict", true, "capitalize output")
 }
 
-func (RenderCommand) Execute(c context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	return render(f)
+func (r RenderCommand) Execute(c context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+	if len(f.Args()) == 0 {
+		logrus.Error("No template files given")
+		fmt.Print(r.Usage())
+		return subcommands.ExitFailure
+	}
+
+	// The version of argv returned by flags.args should only hold arguments now, which is the template files
+	var templateFiles = make([]templatePath, len(f.Args()))
+
+	for i, _ := range f.Args() {
+		var tp = templatePath(f.Args()[i])
+		templateFiles[i] = tp
+	}
+
+	return render(templateFiles, rendercommand.templateconfigpaths)
 }
 
-func render(f *flag.FlagSet) subcommands.ExitStatus {
-	filesInArgs, err := findfilesFromFlags(f)
+func render(templateFiles []templatePath, templateVariables map[templatePath]templateVariablesPath) subcommands.ExitStatus {
+	err := validateTemplatesExist(templateFiles)
+
 	if errors.Is(errors.Unwrap(err), os.ErrNotExist) {
 		logrus.Error(err)
 		return subcommands.ExitFailure
 	}
-	logrus.Debug("filesInArgs: ", filesInArgs)
 
-	for _, templateFile := range filesInArgs {
-		// Can I create this as a flag on the fly and get its value?
-		associatedConfigFlag := templateFile + "-config"
-		var r string
-		f.StringVar(&r, associatedConfigFlag, "", "not sure")
-		flag.Parse()
+	logrus.Debug("filesInArgs: ", templateFiles)
+
+	for _, templatePath := range templateFiles {
+		templateVariablesFilePath := templateVariables[templatePath]
+
+		// Consume the template variables, which are a yaml file, into a map
+		// of key value pairs.
+		templateVariables, err := getTemplateVariables(templateVariablesFilePath)
+
+		// Read the template file
+		// Read the template file
+		templateContents, err := os.ReadFile(string(templatePath))
+
+		if err != nil {
+			logrus.Info("Failed to read template file: ", templatePath, " with error ", err)
+			return subcommands.ExitFailure
+		}
+
+		// Convert template file content to a string
+		templateText := string(templateContents)
+
+		// Create a new template and parse the template text
+		tmpl, err := template.New(string(templatePath)).Parse(templateText)
+
+		if err != nil {
+			logrus.Info("Failed to parse template: ", err)
+			return subcommands.ExitFailure
+		}
+
+		// Execute the template with the data
+		err = tmpl.Execute(os.Stdout, templateVariables)
+
+		if err != nil {
+			log.Fatalf("Failed to execute template: %v", err)
+		}
 
 		return subcommands.ExitSuccess
 
@@ -84,29 +147,67 @@ func render(f *flag.FlagSet) subcommands.ExitStatus {
 	return subcommands.ExitSuccess
 }
 
-func findfilesFromFlags(f *flag.FlagSet) ([]string, error) {
-	filesInTheArgs := []string{}
+func getTemplateVariables(templateVariablesFilePath templateVariablesPath) (map[string]string, error) {
+	// Read the YAML file
+
+	yamlFile, err := os.ReadFile(string(templateVariablesFilePath))
+	if err != nil {
+		logrus.Error("Failed to read YAML file at path <", templateVariablesFilePath, "> Err is: ", err)
+		return nil, err
+	}
+
+	// Create a map to store the parsed YAML data
+	data := make(map[string]string)
+
+	// Unmarshal the YAML data into the map
+	err = yaml.Unmarshal(yamlFile, &data)
+
+	if err != nil {
+		logrus.Error("Failed to unmarshal YAML: %v", err)
+		return nil, err
+	}
+
+	return data, err
+}
+
+func validateTemplatesExist(templateFiles []templatePath) error {
 
 	// First valid named files in the arguments.
 	// Then re-scan across os.args to find any other flags
 	// that contain the filenames of the files.
-	for i, templatePath := range f.Args() {
-		logrus.Debug("index: ", i, " variable:", templatePath)
-		file, err := os.OpenFile(templatePath, os.O_RDONLY, 0644)
+	for _, templateFilePath := range templateFiles {
+		logrus.Debug(" variable:", string(templateFilePath))
+		file, err := os.OpenFile(string(templateFilePath), os.O_RDONLY, 0644)
 		defer file.Close()
 
 		if errors.Is(err, os.ErrNotExist) {
 			// The argument is not a file. Proceed to
 			// handle the case where the file doesn't exist
-			return nil, fmt.Errorf("File does not exist: %s, %w", templatePath, err)
-		} else {
-			filesInTheArgs = append(filesInTheArgs, templatePath)
+			return err
 		}
+
 	}
 
-	return filesInTheArgs, nil
+	return nil
 }
 
 func NewRenderCommand(templateConfigPaths map[string]string) subcommands.Command {
-	return RenderCommand{templateconfigpaths: templateConfigPaths}
+	convertedOptions := convertFromStringToTemplatePath(templateConfigPaths)
+
+	rendercommand.templateconfigpaths = convertedOptions
+
+	return rendercommand
+}
+
+func convertFromStringToTemplatePath(templateConfigPaths map[string]string) map[templatePath]templateVariablesPath {
+	converted := make(map[templatePath]templateVariablesPath)
+
+	for tp, tvp := range templateConfigPaths {
+		converted_tp := templatePath(tp)
+		converted_tvp := templateVariablesPath(tvp)
+
+		converted[converted_tp] = converted_tvp
+	}
+
+	return converted
 }

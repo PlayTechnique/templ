@@ -14,6 +14,19 @@ mkdir -p "${TEMPL_DIR}"
 # Not needed, but by cd-ing the prompt changes so it's clear we're in a subshell in the script.
 cd ${TEMPL_DIR}
 
+cat > roflcopter << EOF
+---
+Hello {{ .name }}
+EOF
+
+ cat > roflcopter.yaml << EOF
+---
+name: "World"
+EOF
+
+
+
+
 echo "Setting logs to debug..."
 export TEMPL_LOG_LEVEL="debug"
 

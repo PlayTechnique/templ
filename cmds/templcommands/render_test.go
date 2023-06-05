@@ -3,6 +3,7 @@ package templcommands
 import (
 	"github.com/google/subcommands"
 	"github.com/stretchr/testify/assert"
+	"go/types"
 	"os"
 	"reflect"
 	"sort"
@@ -40,7 +41,7 @@ func TestRenderFile(t *testing.T) {
 	}
 }
 
-func TestFindFilesInArgs(t *testing.T) {
+func TestRender(t *testing.T) {
 	setupStructure := TestFileStructure{directories: []string{"level_one", "level_one/level_two"}, files: []string{"ringding", "level_one/smudge"}}
 
 	tempdir := Setup(setupStructure)
@@ -51,5 +52,5 @@ func TestFindFilesInArgs(t *testing.T) {
 
 	defer TearDown(tempdir)
 
-	fin
+	assert.IsTypef(t, types.Builtin{}, render(setupStructure.files), "Expected success, got %s", err)
 }
