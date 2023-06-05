@@ -14,7 +14,7 @@ type TestSetup struct {
 	want       []string
 }
 
-func (t TestSetup) Setup() (tempdir string) {
+func Setup(t TestFileStructure) (tempdir string) {
 	tempdir, err := os.MkdirTemp("", "templ_test")
 
 	if err != nil {
@@ -26,18 +26,18 @@ func (t TestSetup) Setup() (tempdir string) {
 		panic(err)
 	}
 
-	for _, dir := range t.setupFiles.directories {
+	for _, dir := range t.directories {
 		os.MkdirAll(dir, 0755)
 	}
 
-	for _, files := range t.setupFiles.files {
+	for _, files := range t.files {
 		os.Create(files)
 	}
 
 	return tempdir
 }
 
-func (t TestSetup) TearDown(directory string) {
+func TearDown(directory string) {
 	err := os.RemoveAll(directory)
 	if err != nil {
 		panic(err)

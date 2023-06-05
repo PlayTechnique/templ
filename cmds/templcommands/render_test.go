@@ -9,16 +9,10 @@ import (
 	"testing"
 )
 
-func TestListFiles(t *testing.T) {
+func TestRenderFile(t *testing.T) {
 	// Set up a test matrix
 	testCases := []TestSetup{
 		{name: "No argument given", setupFiles: TestFileStructure{directories: []string{}, files: []string{}}, startDirs: []string{"./"}, want: []string{}},
-
-		{name: "Only the top level dir", setupFiles: TestFileStructure{directories: []string{"./"}, files: []string{}}, startDirs: []string{"./"}, want: []string{}},
-
-		{name: "One test file in top dir", setupFiles: TestFileStructure{directories: []string{"./"}, files: []string{"./test1"}}, startDirs: []string{"./"}, want: []string{"test1"}},
-
-		{name: "One test file one dir down", setupFiles: TestFileStructure{directories: []string{"./", "./a_directory"}, files: []string{"./a_directory/test1"}}, startDirs: []string{"./"}, want: []string{"a_directory/test1"}},
 	}
 
 	for _, tt := range testCases {
@@ -44,4 +38,18 @@ func TestListFiles(t *testing.T) {
 		},
 		)
 	}
+}
+
+func TestFindFilesInArgs(t *testing.T) {
+	setupStructure := TestFileStructure{directories: []string{"level_one", "level_one/level_two"}, files: []string{"ringding", "level_one/smudge"}}
+
+	tempdir := Setup(setupStructure)
+	err := os.Chdir(tempdir)
+	if err != nil {
+		panic(err)
+	}
+
+	defer TearDown(tempdir)
+
+	fin
 }

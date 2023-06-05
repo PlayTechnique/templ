@@ -72,9 +72,8 @@ func listFiles(topLevelDirs []string) ([]string, subcommands.ExitStatus) {
 				return err
 			}
 
-			// The first file node has a name of '.' for the pwd.
-			// It's quicker to check that for skipping than to check the root variable.
 			if !info.IsDir() {
+				logrus.Debug("Appending: ", filename)
 				allFileNames = append(allFileNames, filename)
 			}
 			return nil

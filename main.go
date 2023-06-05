@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"playtechnique.io/templ/cmds/templcommands"
+	"regexp"
+	"strings"
 )
 
 func init() {
@@ -35,28 +37,81 @@ func init() {
 // Main identifies the templates directory, switches working directories into it and invokes the subcommand.
 func main() {
 	ctx := context.Background()
+	tflags := flag.NewFlagSet("templFlags", flag.ContinueOnError)
+	// Create a copy of os.Args
+	argsCopy := append([]string(nil), os.Args...)
+
+	templCommander := subcommands.NewCommander(tflags, "templ")
 
 	logrus.Info("Starting templ")
 
 	configDir := getConfigDirectory()
-	ChangeDir(configDir)
+	changeDir(configDir)
 
 	//Super cheap way to get documentation into the usage message.
-	oldHelp := subcommands.DefaultCommander.Explain
+	oldHelp := templCommander.Explain
 	help := func(w io.Writer) {
 		fmt.Fprintf(w, "Env Vars: LOG_LEVEL TEMPL_DIR\n")
 		oldHelp(w)
 
 	}
-	subcommands.DefaultCommander.Explain = help
 
-	subcommands.Register(subcommands.HelpCommand(), "help")
-	subcommands.Register(&templcommands.CatCommand{}, "templates")
-	subcommands.Register(&templcommands.ListCommand{}, "templates")
+	var templateConfigPaths = make(map[string]string)
 
-	// Mystical. This seems to parse the subcommand flags.
-	flag.Parse()
-	os.Exit(int(subcommands.Execute(ctx, os.Args)))
+	// remove the config file flags; these are dynamically parsed, not statically configured,
+	for i, flag := range argsCopy {
+		var templateName string
+		var configPath string
+
+		// The config files for templates are a bit of a pain: they're not registerable
+		// as flags, because we don't know their values at compile time and therefore
+		// I have difficulties defining them as static strings.
+		// If an undefined flag reaches
+		// flags library sees things that look like flags when it runs
+		//We're looking for values of type --config-<some template> path/to/config.yml
+		//
+		// The flags library allows for these parsings for args that take string vals
+		//	-flag=x
+		//	--flag=x
+		//	-flag x
+		//	--flag x
+		// We can imagine a template file might be named
+		// config-my-thing-that-takes-config-files
+		// so verify there's a dash at the beginning, and
+		// the string config followed by a dash
+		if strings.Contains(flag, "-config") {
+			// Remove leading "--" or "-"
+			re := regexp.MustCompile("^[-]+")
+			result := re.ReplaceAllString(flag, "")
+
+			templateName = strings.Split(result, "-")[0]
+
+			if strings.Contains(flag, "=") {
+				parsed := strings.Split(flag, "=")
+				configPath = parsed[1]
+				// Remove --foo-config=bar from args
+				argsCopy = append(argsCopy[:i], argsCopy[i+1:]...)
+			} else {
+				configPath = os.Args[i+1]
+				// Remove --foo-config bar from args
+				argsCopy = append(argsCopy[:i], argsCopy[i+2:]...)
+			}
+
+			templateConfigPaths[templateName] = configPath
+		}
+
+	}
+
+	templCommander.Explain = help
+
+	templCommander.Register(subcommands.HelpCommand(), "help")
+	templCommander.Register(&templcommands.CatCommand{}, "templates")
+	templCommander.Register(&templcommands.ListCommand{}, "templates")
+	templCommander.Register(templcommands.NewRenderCommand(templateConfigPaths), "templates")
+
+	tflags.Parse(argsCopy[1:])
+	exitval := int(templCommander.Execute(ctx, os.Args))
+	os.Exit(exitval)
 }
 
 // Interrogates the environment variable TEMPL_DIR for a directory of templates.
@@ -66,6 +121,7 @@ func getConfigDirectory() string {
 	configDir, foundEnvVar := os.LookupEnv("TEMPL_DIR")
 
 	if foundEnvVar {
+		logrus.Debug("Found TEMPL_DIR=", configDir)
 		return configDir
 	}
 
@@ -79,7 +135,7 @@ func getConfigDirectory() string {
 	configDir = home + "/.config/templ/"
 
 	if _, err := os.Stat(configDir); err == nil || os.IsNotExist(err) {
-		fmt.Print("TEMPL_DIR not set. Did not find the default directory. Creating...")
+		logrus.Info("TEMPL_DIR not set. Did not find the default directory. Creating...")
 		err := os.Mkdir(configDir, 0700)
 
 		if err != nil {
@@ -98,10 +154,11 @@ func getConfigDirectory() string {
 // string - Absolute path to the directory that has been switched into.
 // Side Effects
 // Will panic if the directory does not exist.
-func ChangeDir(templatedir string) string {
+func changeDir(templatedir string) string {
 	stat, err := os.Stat(templatedir)
 
 	if !stat.IsDir() || err != nil {
+		logrus.Debug("Trying to chdir into <", templatedir, "> failed. Panicking...")
 		panic(templatedir + " does not exist")
 	} else {
 		templatedir, err = filepath.Abs(templatedir)

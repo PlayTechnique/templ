@@ -17,8 +17,8 @@ func TestFindFilesByNameFindsFilesByName(t *testing.T) {
 	}
 
 	for _, tt := range testCases {
-		tempdir := tt.Setup()
-		defer tt.TearDown(tempdir)
+		tempdir := Setup(tt.setupFiles)
+		defer TearDown(tempdir)
 
 		filesToFind := makeSet(tt.want)
 		// A little prefactoring; if we ever have more than 1 temp dir e.g. when we
