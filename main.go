@@ -41,11 +41,11 @@ func main() {
 	// Create a copy of os.Args
 	argsCopy := append([]string(nil), os.Args...)
 
-	templCommander := subcommands.NewCommander(tflags, "templ")
+	templCommander := subcommands.NewCommander(tflags, os.Args[0])
 
-	logrus.Info("Starting templ")
+	logrus.Info("Starting ", os.Args[0])
 
-	configDir := getConfigDirectory()
+	configDir := getTemplatesDirectory()
 	changeDir(configDir)
 
 	//Super cheap way to get documentation into the usage message.
@@ -56,51 +56,7 @@ func main() {
 
 	}
 
-	var templateConfigPaths = make(map[string]string)
-
-	// remove the config file flags; these are dynamically parsed, not statically configured,
-	for i, flag := range argsCopy {
-		var templateName string
-		var configPath string
-
-		// The config files for templates are a bit of a pain: they're not registerable
-		// as flags, because we don't know their values at compile time and therefore
-		// I have difficulties defining them as static strings.
-		// If an undefined flag reaches
-		// flags library sees things that look like flags when it runs
-		//We're looking for values of type --config-<some template> path/to/config.yml
-		//
-		// The flags library allows for these parsings for args that take string vals
-		//	-flag=x
-		//	--flag=x
-		//	-flag x
-		//	--flag x
-		// We can imagine a template file might be named
-		// config-my-thing-that-takes-config-files
-		// so verify there's a dash at the beginning, and
-		// the string config followed by a dash
-		if strings.Contains(flag, "-config") {
-			// Remove leading "--" or "-"
-			re := regexp.MustCompile("^[-]+")
-			result := re.ReplaceAllString(flag, "")
-
-			templateName = strings.Split(result, "-")[0]
-
-			if strings.Contains(flag, "=") {
-				parsed := strings.Split(flag, "=")
-				configPath = parsed[1]
-				// Remove --foo-config=bar from args
-				argsCopy = append(argsCopy[:i], argsCopy[i+1:]...)
-			} else {
-				configPath = os.Args[i+1]
-				// Remove --foo-config bar from args
-				argsCopy = append(argsCopy[:i], argsCopy[i+2:]...)
-			}
-
-			templateConfigPaths[templateName] = configPath
-		}
-
-	}
+	templateConfigPaths, argsCopy := parseArgsForDynamicConfigOptions(argsCopy)
 
 	templCommander.Explain = help
 
@@ -112,39 +68,6 @@ func main() {
 	tflags.Parse(argsCopy[1:])
 	exitval := int(templCommander.Execute(ctx, os.Args))
 	os.Exit(exitval)
-}
-
-// Interrogates the environment variable TEMPL_DIR for a directory of templates.
-// If that variable does not exist, it attempts to switch into the default template directory.
-func getConfigDirectory() string {
-
-	configDir, foundEnvVar := os.LookupEnv("TEMPL_DIR")
-
-	if foundEnvVar {
-		logrus.Debug("Found TEMPL_DIR=", configDir)
-		return configDir
-	}
-
-	home, foundHome := os.LookupEnv("HOME")
-
-	if !foundHome {
-		fmt.Print("HOME env var not found. templ cannot autodiscover the default configdir, and TEMPL_DIR is not set.")
-		panic("Please review the help for preconditions to meet running templ/")
-	}
-
-	configDir = home + "/.config/templ/"
-
-	if _, err := os.Stat(configDir); err == nil || os.IsNotExist(err) {
-		logrus.Info("TEMPL_DIR not set. Did not find the default directory. Creating...")
-		err := os.Mkdir(configDir, 0700)
-
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	return configDir
-
 }
 
 // Validates that a directory exists and then changes the pwd into it.
@@ -169,4 +92,91 @@ func changeDir(templatedir string) string {
 		return templatedir
 	}
 
+}
+
+// Interrogates the environment variable TEMPL_DIR for a directory of templates.
+// If that variable does not exist, it attempts to switch into the default template directory.
+func getTemplatesDirectory() string {
+
+	configDir, foundEnvVar := os.LookupEnv("TEMPL_DIR")
+
+	if foundEnvVar {
+		logrus.Debug("Found TEMPL_DIR=", configDir)
+		return configDir
+	}
+
+	home, foundHome := os.LookupEnv("HOME")
+
+	if !foundHome {
+		fmt.Print("HOME env var not found. templ cannot autodiscover the default configdir, and TEMPL_DIR is not set.")
+		panic("Please review the help for preconditions to meet running templ/")
+	}
+
+	configDir = home + "/.config/templ"
+
+	if _, err := os.Stat(configDir); err == nil || os.IsNotExist(err) {
+		logrus.Info("TEMPL_DIR not set. Did not find the default directory. Creating...")
+		err := os.MkdirAll(configDir, 0700)
+
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	return configDir
+
+}
+
+// The config files for templates are a bit of a pain: they options are not registerable
+// as flags, because we don't know the flag names, and the flags library has
+// a strong reliance on knowing these ahead of time. When flag.Parse() is called, if a flag appears in argv that is not
+// defined already then an error is raised. I tried setting the flags library to continue
+// on error but this is a special case.
+// Therefore I need to parse out the --config-foo options and remove them from os.args ahead of time.
+// We're looking for values of type --config-<some template> path/to/config.yml
+//
+// The flags library allows for these parsings for args that take string vals
+//
+//	-flag=x
+//	--flag=x
+//	-flag x
+//	--flag x
+//
+// We can imagine a template file might be named
+// config-my-thing-that-takes-config-files
+// so verify there's a dash at the beginning, and
+// the string config followed by a dash
+func parseArgsForDynamicConfigOptions(argsCopy []string) (map[string]string, []string) {
+	var templateConfigPaths = make(map[string]string)
+
+	// I can make the paths into absolute paths by prefixing them with the templates directory.
+	configDir := getTemplatesDirectory()
+	// remove the config file flags; these are dynamically parsed, not statically configured,
+	for i, flag := range argsCopy {
+		var templateName string
+		var configPath string
+
+		if strings.Contains(flag, "-config") {
+			// Remove leading "--" or "-"
+			re := regexp.MustCompile("^[-]+")
+			result := re.ReplaceAllString(flag, "")
+
+			templateName = strings.Split(result, "-")[0]
+
+			if strings.Contains(flag, "=") {
+				parsed := strings.Split(flag, "=")
+				configPath = parsed[1]
+				// Remove --foo-config=bar from args
+				argsCopy = append(argsCopy[:i], argsCopy[i+1:]...)
+			} else {
+				configPath = os.Args[i+1]
+				// Remove --foo-config bar from args
+				argsCopy = append(argsCopy[:i], argsCopy[i+2:]...)
+			}
+
+			templateConfigPaths[templateName] = configDir + "/" + configPath
+		}
+
+	}
+	return templateConfigPaths, argsCopy
 }
