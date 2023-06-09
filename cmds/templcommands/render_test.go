@@ -2,18 +2,30 @@ package templcommands
 
 import (
 	"github.com/google/subcommands"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"go/types"
 	"os"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 )
+
+func init() {
+	ll := logrus.DebugLevel
+
+	// set file names and line number to appear in log messages
+	logrus.SetReportCaller(true)
+
+	// set global log level
+	logrus.SetLevel(ll)
+
+}
 
 func TestRenderFile(t *testing.T) {
 	// Set up a test matrix
 	testCases := []TestSetup{
-		{name: "No argument given", setupFiles: TestFileStructure{directories: []string{}, files: []string{}}, startDirs: []string{"./"}, want: []string{}},
+		{name: "No argument given", setupFiles: TestFileStructure{directories: []string{}, files: map[string]string{}}, startDirs: []string{"./"}, want: []string{}},
 	}
 
 	for _, tt := range testCases {
@@ -42,7 +54,29 @@ func TestRenderFile(t *testing.T) {
 }
 
 func TestRender(t *testing.T) {
-	setupStructure := TestFileStructure{directories: []string{"level_one", "level_one/level_two"}, files: []string{"ringding", "level_one/smudge"}}
+	setupStructure := TestFileStructure{
+		directories: []string{"level_one", "level_one/level_two"},
+		files: map[string]string{
+			"ringding":              "this is the content",
+			"level_one/smudge":      "more content {{ .roflcopter }} here\n",
+			"level_one/smudge.yaml": "---\nroflcopter: \"hippololamus\"\n",
+		},
+	}
+
+	tempdir, templatePaths, templateVariables := setupRenderTestStructures(setupStructure)
+
+	err := os.Chdir(tempdir)
+
+	if err != nil {
+		panic(err)
+	}
+	defer TearDown(tempdir)
+
+	retval := render(templatePaths, templateVariables)
+	assert.IsTypef(t, subcommands.ExitSuccess, retval, "Expected success, got %s", err)
+}
+
+func setupRenderTestStructures(setupStructure TestFileStructure) (string, []templatePath, map[templatePath]templateVariablesPath) {
 
 	tempdir := Setup(setupStructure)
 	err := os.Chdir(tempdir)
@@ -50,7 +84,34 @@ func TestRender(t *testing.T) {
 		panic(err)
 	}
 
-	defer TearDown(tempdir)
+	// The render function accepts a structure of type templatePath and a structure of type templateVariablesPath.
+	var templatePaths = make([]templatePath, 0)
+	var templateVariables = make(map[templatePath]templateVariablesPath, 0)
 
-	assert.IsTypef(t, types.Builtin{}, render(setupStructure.files), "Expected success, got %s", err)
+	for filename, fileContent := range setupStructure.files {
+
+		err := os.WriteFile(tempdir+"/"+filename, []byte(fileContent), 0644)
+
+		if err != nil {
+			panic(err)
+		}
+
+		// If this is a config file, then we store its path in the templateVariables data structure
+		if isVariablesFile(filename) {
+			associatedTemplateFile := templatePath(strings.TrimSuffix(filename, ".yaml"))
+			templateVariables[associatedTemplateFile] = templateVariablesPath(filename)
+		}
+
+		// If this is a template file, the templatePaths data structure is index based
+		if !isVariablesFile(filename) {
+			templatePaths = append(templatePaths, templatePath(filename))
+		}
+
+	}
+
+	return tempdir, templatePaths, templateVariables
+}
+
+func isVariablesFile(filename string) bool {
+	return strings.HasSuffix(filename, ".yaml")
 }

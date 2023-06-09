@@ -7,13 +7,13 @@ import (
 
 func TestFindFilesByNameFindsFilesByName(t *testing.T) {
 	testCases := []TestSetup{
-		{name: "No argument given", setupFiles: TestFileStructure{directories: []string{}, files: []string{}}, startDirs: []string{"./"}, want: []string{}},
+		{name: "No argument given", setupFiles: TestFileStructure{directories: []string{}, files: map[string]string{}}, startDirs: []string{"./"}, want: []string{}},
 
-		{name: "Only the top level dir", setupFiles: TestFileStructure{directories: []string{"./"}, files: []string{}}, startDirs: []string{"./"}, want: []string{}},
+		{name: "Only the top level dir", setupFiles: TestFileStructure{directories: []string{"./"}, files: map[string]string{}}, startDirs: []string{"./"}, want: []string{}},
 
-		{name: "One test file in top dir", setupFiles: TestFileStructure{directories: []string{"./"}, files: []string{"./test1"}}, startDirs: []string{"./"}, want: []string{"test1"}},
+		{name: "One test file in top dir", setupFiles: TestFileStructure{directories: []string{"./"}, files: map[string]string{"./test1": ""}}, startDirs: []string{"./"}, want: []string{"test1"}},
 
-		{name: "One test file one dir down", setupFiles: TestFileStructure{directories: []string{"./", "./a_directory"}, files: []string{"./a_directory/test1"}}, startDirs: []string{"./"}, want: []string{"a_directory/test1"}},
+		{name: "One test file one dir down", setupFiles: TestFileStructure{directories: []string{"./", "./a_directory"}, files: map[string]string{"./a_directory/test1": ""}}, startDirs: []string{"./"}, want: []string{"a_directory/test1"}},
 	}
 
 	for _, tt := range testCases {

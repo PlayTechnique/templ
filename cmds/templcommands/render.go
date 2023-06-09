@@ -109,17 +109,24 @@ func render(templateFiles []templatePath, templateVariables map[templatePath]tem
 	for _, templatePath := range templateFiles {
 		templateVariablesFilePath := templateVariables[templatePath]
 
+		if templateVariablesFilePath == "" {
+			logrus.Debug("No template variables file given for template file: ", templatePath)
+			continue
+		} else {
+			logrus.Debug("Found template variables file: ", templateVariablesFilePath)
+		}
 		// Consume the template variables, which are a yaml file, into a map
 		// of key value pairs.
 		templateVariables, err := getTemplateVariables(templateVariablesFilePath)
 
-		// Read the template file
 		// Read the template file
 		templateContents, err := os.ReadFile(string(templatePath))
 
 		if err != nil {
 			logrus.Info("Failed to read template file: ", templatePath, " with error ", err)
 			return subcommands.ExitFailure
+		} else {
+			logrus.Info("Successfully read template file: ", templatePath)
 		}
 
 		// Convert template file content to a string
@@ -129,8 +136,10 @@ func render(templateFiles []templatePath, templateVariables map[templatePath]tem
 		tmpl, err := template.New(string(templatePath)).Parse(templateText)
 
 		if err != nil {
-			logrus.Info("Failed to parse template: ", err)
+			logrus.Error("Failed to parse template: ", err)
 			return subcommands.ExitFailure
+		} else {
+			logrus.Info("Successfully parsed template: ", templatePath)
 		}
 
 		// Execute the template with the data
@@ -138,10 +147,10 @@ func render(templateFiles []templatePath, templateVariables map[templatePath]tem
 
 		if err != nil {
 			log.Fatalf("Failed to execute template: %v", err)
+			return subcommands.ExitFailure
+		} else {
+			logrus.Info("Successfully executed template: ", templatePath)
 		}
-
-		return subcommands.ExitSuccess
-
 	}
 
 	return subcommands.ExitSuccess
@@ -163,7 +172,7 @@ func getTemplateVariables(templateVariablesFilePath templateVariablesPath) (map[
 	err = yaml.Unmarshal(yamlFile, &data)
 
 	if err != nil {
-		logrus.Error("Failed to unmarshal YAML: %v", err)
+		logrus.Error("Failed to unmarshal YAML: ", err)
 		return nil, err
 	}
 
@@ -203,11 +212,15 @@ func convertFromStringToTemplatePath(templateConfigPaths map[string]string) map[
 	converted := make(map[templatePath]templateVariablesPath)
 
 	for tp, tvp := range templateConfigPaths {
-		converted_tp := templatePath(tp)
+		converted_tp := convertStr(tp)
 		converted_tvp := templateVariablesPath(tvp)
 
 		converted[converted_tp] = converted_tvp
 	}
 
 	return converted
+}
+
+func convertStr(s string) templatePath {
+	return templatePath(s)
 }

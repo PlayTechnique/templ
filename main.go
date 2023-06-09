@@ -51,7 +51,7 @@ func main() {
 	//Super cheap way to get documentation into the usage message.
 	oldHelp := templCommander.Explain
 	help := func(w io.Writer) {
-		fmt.Fprintf(w, "Env Vars: LOG_LEVEL TEMPL_DIR\n")
+		fmt.Fprintf(w, "Env Vars: TEMPL_LOG_LEVEL TEMPL_DIR\n")
 		oldHelp(w)
 
 	}

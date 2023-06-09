@@ -1,10 +1,12 @@
 package templcommands
 
-import "os"
+import (
+	"os"
+)
 
 type TestFileStructure struct {
 	directories []string
-	files       []string
+	files       map[string]string
 }
 
 type TestSetup struct {
@@ -22,6 +24,7 @@ func Setup(t TestFileStructure) (tempdir string) {
 	}
 
 	err = os.Chdir(tempdir)
+
 	if err != nil {
 		panic(err)
 	}
@@ -30,8 +33,13 @@ func Setup(t TestFileStructure) (tempdir string) {
 		os.MkdirAll(dir, 0755)
 	}
 
-	for _, files := range t.files {
-		os.Create(files)
+	for filename, content := range t.files {
+
+		err := os.WriteFile(filename, []byte(content), 0755)
+
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	return tempdir
