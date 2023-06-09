@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/go-git/go-git"
 	"github.com/google/subcommands"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -103,6 +104,16 @@ func getTemplatesDirectory() string {
 	if foundEnvVar {
 		logrus.Debug("Found TEMPL_DIR=", configDir)
 		return configDir
+	} else {
+		logrus.Debug("Did not find TEMPL_DIR, attempting to locate default...")
+	}
+
+	gitUrl, foundGitUrl := os.LookupEnv("TEMPL_GIT_URL")
+
+	if foundGitUrl {
+		logrus.Debug("Found git URL...")
+	} else {
+		logrus.Debug("Did not find TEMPL_GIT_URL.")
 	}
 
 	home, foundHome := os.LookupEnv("HOME")
@@ -113,12 +124,33 @@ func getTemplatesDirectory() string {
 	}
 
 	configDir = home + "/.config/templ"
+	remoteTemplatesDir := configDir + "/remotes"
 
 	if _, err := os.Stat(configDir); err == nil || os.IsNotExist(err) {
 		logrus.Info("TEMPL_DIR not set. Did not find the default directory. Creating...")
 		err := os.MkdirAll(configDir, 0700)
 
 		if err != nil {
+			panic(err)
+		}
+	} else {
+		logrus.Info("Using templates directory ", configDir)
+		logrus.Info("Updating remote templates directory ", remoteTemplatesDir)
+	}
+
+	// Handle cloning in the remote templates from github.
+	// Here's some starter code from a library
+	logrus.Info("git clone", remoteTemplatesDir)
+
+	_, err = git.PlainClone(remoteTemplatesDir, false, &git.CloneOptions{
+		URL:      gitUrl,
+		Progress: os.Stdout,
+	})
+
+	if err != nil {
+		if err == git.ErrRepositoryAlreadyExists {
+			logrus.Info("Remote templates already exist. Skipping clone.")
+		} else {
 			panic(err)
 		}
 	}
