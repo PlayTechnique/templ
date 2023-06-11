@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/go-git/go-git"
 	"github.com/google/subcommands"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -46,8 +45,10 @@ func main() {
 
 	logrus.Info("Starting ", os.Args[0])
 
-	configDir := getTemplatesDirectory()
-	changeDir(configDir)
+	templatesDir, err := getTemplatesDirectory()
+	if err != nil {
+		panic(err)
+	}
 
 	//Super cheap way to get documentation into the usage message.
 	oldHelp := templCommander.Explain
@@ -67,95 +68,50 @@ func main() {
 	templCommander.Register(templcommands.NewRenderCommand(templateConfigPaths), "templates")
 
 	tflags.Parse(argsCopy[1:])
+
+	os.Chdir(templatesDir)
 	exitval := int(templCommander.Execute(ctx, os.Args))
 	os.Exit(exitval)
 }
 
-// Validates that a directory exists and then changes the pwd into it.
-// Parameters:
-// 1. templatedir - a string representing the path to the directory containing templates.
-// Returns:
-// string - Absolute path to the directory that has been switched into.
-// Side Effects
-// Will panic if the directory does not exist.
-func changeDir(templatedir string) string {
-	stat, err := os.Stat(templatedir)
-
-	if !stat.IsDir() || err != nil {
-		logrus.Debug("Trying to chdir into <", templatedir, "> failed. Panicking...")
-		panic(templatedir + " does not exist")
-	} else {
-		templatedir, err = filepath.Abs(templatedir)
-		if err != nil {
-			panic(fmt.Errorf("something wrong with %s: %v", templatedir, err))
-		}
-		os.Chdir(templatedir)
-		return templatedir
-	}
-
-}
-
 // Interrogates the environment variable TEMPL_DIR for a directory of templates.
 // If that variable does not exist, it attempts to switch into the default template directory.
-func getTemplatesDirectory() string {
+func getTemplatesDirectory() (string, error) {
 
-	configDir, foundEnvVar := os.LookupEnv("TEMPL_DIR")
+	templatesDir, foundEnvVar := os.LookupEnv("TEMPL_DIR")
 
+	// Only auto-create TEMPL_DIR if we're using the default directory. The reasoning is that if
+	// the user explicitly provides the directory to use then they're expected to have already
+	// created it. If not, then we are make sure the default setup is correct.
 	if foundEnvVar {
-		logrus.Debug("Found TEMPL_DIR=", configDir)
-		return configDir
+		logrus.Debug("Found TEMPL_DIR=", templatesDir)
 	} else {
-		logrus.Debug("Did not find TEMPL_DIR, attempting to locate default...")
-	}
+		logrus.Debug("Did not find TEMPL_DIR. Switching to default templates directory.")
+		home, foundHome := os.LookupEnv("HOME")
 
-	gitUrl, foundGitUrl := os.LookupEnv("TEMPL_GIT_URL")
-
-	if foundGitUrl {
-		logrus.Debug("Found git URL...")
-	} else {
-		logrus.Debug("Did not find TEMPL_GIT_URL.")
-	}
-
-	home, foundHome := os.LookupEnv("HOME")
-
-	if !foundHome {
-		fmt.Print("HOME env var not found. templ cannot autodiscover the default configdir, and TEMPL_DIR is not set.")
-		panic("Please review the help for preconditions to meet running templ/")
-	}
-
-	configDir = home + "/.config/templ"
-	remoteTemplatesDir := configDir + "/remotes"
-
-	if _, err := os.Stat(configDir); err == nil || os.IsNotExist(err) {
-		logrus.Info("TEMPL_DIR not set. Did not find the default directory. Creating...")
-		err := os.MkdirAll(configDir, 0700)
-
-		if err != nil {
-			panic(err)
+		if !foundHome {
+			logrus.Error("HOME env var not found. templ cannot autodiscover the default templates dir, and TEMPL_DIR is not set.")
+			panic("Please review the help for preconditions to meet running templ/")
 		}
-	} else {
-		logrus.Info("Using templates directory ", configDir)
-		logrus.Info("Updating remote templates directory ", remoteTemplatesDir)
+
+		templatesDir = home + "/.config/templ"
+
+		if _, err := os.Stat(templatesDir); err == nil || os.IsNotExist(err) {
+			logrus.Info("Did not find <" + templatesDir + "> directory. Creating...")
+			err := os.MkdirAll(templatesDir, 0700)
+
+			if err != nil {
+				panic(err)
+			}
+		}
 	}
 
-	// Handle cloning in the remote templates from github.
-	// Here's some starter code from a library
-	logrus.Info("git clone", remoteTemplatesDir)
-
-	_, err = git.PlainClone(remoteTemplatesDir, false, &git.CloneOptions{
-		URL:      gitUrl,
-		Progress: os.Stdout,
-	})
-
+	templatesDir, err := filepath.Abs(templatesDir)
 	if err != nil {
-		if err == git.ErrRepositoryAlreadyExists {
-			logrus.Info("Remote templates already exist. Skipping clone.")
-		} else {
-			panic(err)
-		}
+		err = fmt.Errorf("something wrong with %s: %v", templatesDir, err)
 	}
 
-	return configDir
+	return templatesDir, err
 
 }
 
@@ -181,12 +137,11 @@ func getTemplatesDirectory() string {
 func parseArgsForDynamicConfigOptions(argsCopy []string) (map[string]string, []string) {
 	var templateConfigPaths = make(map[string]string)
 
-	// I can make the paths into absolute paths by prefixing them with the templates directory.
-	configDir := getTemplatesDirectory()
 	// remove the config file flags; these are dynamically parsed, not statically configured,
 	for i, flag := range argsCopy {
 		var templateName string
 		var configPath string
+		var err error
 
 		if strings.Contains(flag, "-config") {
 			// Remove leading "--" or "-"
@@ -206,7 +161,11 @@ func parseArgsForDynamicConfigOptions(argsCopy []string) (map[string]string, []s
 				argsCopy = append(argsCopy[:i], argsCopy[i+2:]...)
 			}
 
-			templateConfigPaths[templateName] = configDir + "/" + configPath
+			templateConfigPaths[templateName], err = filepath.Abs(configPath)
+
+			if err != nil {
+				panic(err)
+			}
 		}
 
 	}
