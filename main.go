@@ -65,6 +65,7 @@ func main() {
 	templCommander.Register(subcommands.HelpCommand(), "help")
 	templCommander.Register(&templcommands.CatCommand{}, "templates")
 	templCommander.Register(&templcommands.ListCommand{}, "templates")
+	templCommander.Register(&templcommands.RepoCommand{}, "templates")
 	templCommander.Register(templcommands.NewRenderCommand(templateConfigPaths), "templates")
 
 	tflags.Parse(argsCopy[1:])
