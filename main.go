@@ -9,7 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"playtechnique.io/templ/cmds/templcommands"
+	"github.com/gwynforthewyn/templ/cmds/templcommands"
 	"regexp"
 	"strings"
 )
