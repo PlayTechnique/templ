@@ -1,4 +1,4 @@
-module playtechnique.io/templ
+module github.com/gwynforthewyn/templ
 
 go 1.19
 
