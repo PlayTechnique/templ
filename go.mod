@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/google/subcommands v1.2.0
 	github.com/sirupsen/logrus v1.9.2
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.8.4
 	gopkg.in/yaml.v3 v3.0.1
 )
 

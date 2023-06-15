@@ -5,6 +5,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // findFilesByName searches a directory for file names that match those provided in a set of strings.
@@ -64,8 +65,18 @@ func listFiles(topLevelDirs []string) ([]string, subcommands.ExitStatus) {
 	//For each file named in the args to cat, search the current working directory to see if it exists
 	for _, root := range topLevelDirs {
 		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-
 			filename, err := filepath.Rel(root, path)
+
+			// If we're at the root, don't add it to the list of files, but also don't let it get to
+			// the filepath.Skipdir return statement, otherwise we don't walk anything at all.
+			if path == root {
+				return nil
+			}
+
+			// skip hidden files and directories
+			if info.IsDir() && strings.HasPrefix(info.Name(), ".") {
+				return filepath.SkipDir
+			}
 
 			if err != nil {
 				logrus.Error("Error calculating relative path:", err)

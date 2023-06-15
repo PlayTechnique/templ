@@ -12,8 +12,17 @@ import (
 )
 
 func init() {
-	ll := logrus.DebugLevel
+	lvl, ok := os.LookupEnv("TEMPL_LOG_LEVEL")
+	// LOG_LEVEL not set, let's default to debug
+	if !ok {
+		lvl = "warn"
+	}
 
+	// parse string, this is built-in feature of logrus
+	ll, err := logrus.ParseLevel(lvl)
+	if err != nil {
+		ll = logrus.DebugLevel
+	}
 	// set file names and line number to appear in log messages
 	logrus.SetReportCaller(true)
 
