@@ -18,25 +18,24 @@ func TestCloneAndList(t *testing.T) {
 
 	defer os.RemoveAll(topLevel)
 
-	err = cloneTheRepositories(topLevel, []string{"https://github.com/gwynforthewyn/templ"})
+	var repocommand RepoCommand = NewRepoCommand(topLevel)
+
+	err = repocommand.CloneTheRepositories([]string{"https://github.com/gwynforthewyn/templ"})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	files, exitStatus := listFiles([]string{topLevel})
+	filesInTemplateDirectory, exitStatus := listFiles([]string{repocommand.templatedirectory})
 
 	if exitStatus == subcommands.ExitFailure {
 		t.Fatal("List command failed")
 	}
 
-	//verify known good strings are in the file list
-	search := "templ/main.go"
-	info, err := os.Lstat(topLevel + "/templ")
+	repositoryDir, err := os.Stat(topLevel + "/templ")
+	index := sort.SearchStrings(filesInTemplateDirectory, "templ/main.go")
 
-	index := sort.SearchStrings(files, search)
-
-	assert.True(t, info.Mode()&os.ModeSymlink == os.ModeSymlink)
-	assert.True(t, index < len(files))
-	assert.True(t, files[index] == search)
+	//assert that the templ directory exists
+	assert.True(t, repositoryDir.Mode()&os.ModeDir == os.ModeDir)
+	assert.True(t, filesInTemplateDirectory[index] == "templ/main.go")
 
 }

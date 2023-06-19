@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	_ "os"
+	"strings"
 	"text/template"
 )
 
@@ -20,6 +21,7 @@ type templateVariablesPath string
 
 type RenderCommand struct {
 	templateName        string
+	templatedirectory   string
 	templateconfigpaths map[templatePath]templateVariablesPath
 	synopsis            string
 	usage               string
@@ -36,19 +38,23 @@ func init() {
 	rendercommand.templateName = "render"
 	rendercommand.synopsis = "render a template"
 	rendercommand.usage = `
-render [--<template-name>-config=<value> --no-strict] <name of at least one template file from the list>
+render <name of at least one template file from the list>=<path to template variables file>
 
-Output the contents of named, known template files. You supply the variables through a yaml file. It should contain a map:
+Output the contents of named, known template files. You supply the variables through a yaml file. It should contain a map.
 
-Imagine a template that reads, in a template file called examples/hello.txt
+If we have a template file called examples/hello.txt:
+=======
 Hello {{ .name }}
+=======
 
-Then the yaml file, in path $HOME/hello.yaml should read:
+Then the yaml file, in path /path/to/hello.yaml should read:
+=======
 ---
 name: "World"
+=======
 
 Then you run:
-render --examples/hello.txt-config=$HOME/hello.yaml examples/hello.txt
+render examples/hello.txt=/path/to/hello.yaml
 
 And the output is:
 Hello World
@@ -87,21 +93,33 @@ func (r RenderCommand) Execute(c context.Context, f *flag.FlagSet, _ ...interfac
 
 	// The version of argv returned by flags.args should only hold arguments now, which is the template files
 	var templateFiles = make([]templatePath, len(f.Args()))
+	var templateVariablesFiles = make(map[templatePath]templateVariablesPath, len(f.Args()))
 
-	for i, _ := range f.Args() {
-		var tp = templatePath(f.Args()[i])
-		templateFiles[i] = tp
+	for _, combo := range f.Args() {
+		logrus.Debug("combo: ", combo)
+		//split the combo into template file and template variables file around the = sign
+		split := strings.Split(combo, "=")
+
+		if len(split) != 2 {
+			logrus.Error("Failed to split template file and template variables file. Input was: ", combo)
+			return subcommands.ExitFailure
+		}
+
+		var tp = templatePath(split[0])
+		templateFiles = append(templateFiles, tp)
+		templateVariablesFiles[tp] = templateVariablesPath(split[1])
 	}
 
-	return render(templateFiles, rendercommand.templateconfigpaths)
+	exitStatus, _ := render(templateFiles, rendercommand.templateconfigpaths)
+	return exitStatus
 }
 
-func render(templateFiles []templatePath, templateVariables map[templatePath]templateVariablesPath) subcommands.ExitStatus {
+func render(templateFiles []templatePath, templateVariables map[templatePath]templateVariablesPath) (subcommands.ExitStatus, error) {
 	err := validateTemplatesExist(templateFiles)
 
-	if errors.Is(errors.Unwrap(err), os.ErrNotExist) {
+	if err != nil {
 		logrus.Error(err)
-		return subcommands.ExitFailure
+		return subcommands.ExitFailure, err
 	}
 
 	logrus.Debug("filesInArgs: ", templateFiles)
@@ -124,7 +142,7 @@ func render(templateFiles []templatePath, templateVariables map[templatePath]tem
 
 		if err != nil {
 			logrus.Info("Failed to read template file: ", templatePath, " with error ", err)
-			return subcommands.ExitFailure
+			return subcommands.ExitFailure, err
 		} else {
 			logrus.Info("Successfully read template file: ", templatePath)
 		}
@@ -137,7 +155,7 @@ func render(templateFiles []templatePath, templateVariables map[templatePath]tem
 
 		if err != nil {
 			logrus.Error("Failed to parse template: ", err)
-			return subcommands.ExitFailure
+			return subcommands.ExitFailure, err
 		} else {
 			logrus.Info("Successfully parsed template: ", templatePath)
 		}
@@ -147,13 +165,13 @@ func render(templateFiles []templatePath, templateVariables map[templatePath]tem
 
 		if err != nil {
 			log.Fatalf("Failed to execute template: %v", err)
-			return subcommands.ExitFailure
+			return subcommands.ExitFailure, err
 		} else {
 			logrus.Info("Successfully executed template: ", templatePath)
 		}
 	}
 
-	return subcommands.ExitSuccess
+	return subcommands.ExitSuccess, nil
 }
 
 func getTemplateVariables(templateVariablesFilePath templateVariablesPath) (map[string]string, error) {
@@ -189,9 +207,10 @@ func validateTemplatesExist(templateFiles []templatePath) error {
 		file, err := os.OpenFile(string(templateFilePath), os.O_RDONLY, 0644)
 		defer file.Close()
 
-		if errors.Is(err, os.ErrNotExist) {
+		if errors.Is(errors.Unwrap(err), os.ErrNotExist) {
 			// The argument is not a file. Proceed to
 			// handle the case where the file doesn't exist
+			err = fmt.Errorf("File %s does not exist: %v", templateFilePath, err)
 			return err
 		}
 
@@ -200,27 +219,8 @@ func validateTemplatesExist(templateFiles []templatePath) error {
 	return nil
 }
 
-func NewRenderCommand(templateConfigPaths map[string]string) subcommands.Command {
-	convertedOptions := convertFromStringToTemplatePath(templateConfigPaths)
+func NewRenderCommand(templateDir string) RenderCommand {
 
-	rendercommand.templateconfigpaths = convertedOptions
-
+	rendercommand.templatedirectory = templateDir
 	return rendercommand
-}
-
-func convertFromStringToTemplatePath(templateConfigPaths map[string]string) map[templatePath]templateVariablesPath {
-	converted := make(map[templatePath]templateVariablesPath)
-
-	for tp, tvp := range templateConfigPaths {
-		converted_tp := convertStr(tp)
-		converted_tvp := templateVariablesPath(tvp)
-
-		converted[converted_tp] = converted_tvp
-	}
-
-	return converted
-}
-
-func convertStr(s string) templatePath {
-	return templatePath(s)
 }

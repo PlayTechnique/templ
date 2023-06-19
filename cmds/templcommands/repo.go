@@ -12,93 +12,66 @@ import (
 )
 
 type RepoCommand struct {
-	TemplateName  string
-	synopsis      string
-	usage         string
-	repodirectory string
+	TemplateName          string
+	templatedirectory     string
+	synopsis              string
+	usage                 string
+	repositoriesdirectory string
 }
 
-var repoCommand RepoCommand
+var repocommand RepoCommand
 
 func init() {
-	repoCommand.TemplateName = "repo"
-	repoCommand.synopsis = "Clone or update git repositories of templates"
-	repoCommand.usage = `
+	repocommand.TemplateName = "repo"
+	repocommand.synopsis = "Clone or update git repositories of templates"
+	repocommand.usage = `
 repo git-url
 Clones a github repository
 
 repo --update
 Iterates over repositories and updates them
-
 `
-	// We'll make a directory called .repositories in the current working directory
-	// to store any git repositories that are cloned down.
-	// It feels simpler than cloning the directories directly into the templates directory and then trying to
-	// differentiate between user-provided repositories and the ones that are cloned down.
-	repoCommand.repodirectory = ".repositories"
 }
 
 func (RepoCommand) Name() string {
-	return repoCommand.TemplateName
+	return repocommand.TemplateName
 }
 
 func (RepoCommand) Synopsis() string {
-	return repoCommand.synopsis
+	return repocommand.synopsis
 }
 
 func (RepoCommand) Usage() string {
-	return repoCommand.usage
+	return repocommand.usage
 }
 
-func (c *RepoCommand) SetFlags(_ *flag.FlagSet) {
+func (c RepoCommand) SetFlags(_ *flag.FlagSet) {
 
 }
 
-func (*RepoCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+func (r RepoCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	logrus.Debug(f)
 
 	if f.NArg() == 0 {
-		fmt.Print(repoCommand.Usage())
+		fmt.Print(repocommand.Usage())
 		return subcommands.ExitFailure
 	}
 
-	//if r.updates {
-	//	doTheRepoUpdates()
-	//}
-
-	// if repodirectory does not exist, create it
-	if _, err := os.Stat(repoCommand.repodirectory); os.IsNotExist(err) {
-		err := os.MkdirAll(repoCommand.repodirectory, os.ModePerm)
-
-		if err != nil {
-			logrus.Error(err)
-			return subcommands.ExitFailure
-		} else {
-			logrus.Debug("Created directory: ", repoCommand.repodirectory)
-		}
-	}
-
-	err := cloneTheRepositories(repoCommand.repodirectory, f.Args())
+	err := repocommand.CloneTheRepositories(f.Args())
 
 	if err != nil {
 		logrus.Error(err)
 		return subcommands.ExitFailure
 	} else {
-		logrus.Debug("Cloned repositories from <", f.Args(), "> into the ", repoCommand.repodirectory, " directory.")
+		logrus.Debug("Cloned repositories from <", f.Args(), "> into the ", repocommand.repositoriesdirectory, " directory.")
 	}
 
 	return subcommands.ExitSuccess
 }
 
-func cloneTheRepositories(repositoriesTopLevel string, gitUrls []string) error {
-	pwd, err := os.Getwd()
-	if err != nil {
-		logrus.Error("Could not get pwd from", pwd, " ", err)
-		return err
-	}
+func (r RepoCommand) CloneTheRepositories(gitUrls []string) error {
 
 	for _, gitUrl := range gitUrls {
-
 		destinationDirectoryName, err := extractDirNameFromUrl(gitUrl)
 
 		if err != nil {
@@ -106,7 +79,7 @@ func cloneTheRepositories(repositoriesTopLevel string, gitUrls []string) error {
 			return err
 		}
 
-		_, err = git.PlainClone(repositoriesTopLevel+"/"+destinationDirectoryName, false, &git.CloneOptions{
+		_, err = git.PlainClone(r.templatedirectory+"/"+destinationDirectoryName, false, &git.CloneOptions{
 			URL:      gitUrl,
 			Progress: os.Stdout,
 		})
@@ -114,13 +87,11 @@ func cloneTheRepositories(repositoriesTopLevel string, gitUrls []string) error {
 		if err != nil {
 			if err == git.ErrRepositoryAlreadyExists {
 				logrus.Info("Repository ", gitUrl, " already exists, not cloning: ", err)
+				continue
 			}
 			logrus.Error(err)
 			return err
 		}
-
-		// symlink the new directory to the templates directory
-		err = os.Symlink(repositoriesTopLevel+"/"+destinationDirectoryName, destinationDirectoryName)
 	}
 
 	return nil
@@ -149,4 +120,10 @@ func extractDirNameFromUrl(urlStr string) (string, error) {
 	}
 
 	return "", fmt.Errorf("unable to extract repository from URL")
+}
+
+func NewRepoCommand(templateDir string) RepoCommand {
+	repocommand.templatedirectory = templateDir
+	repocommand.repositoriesdirectory = templateDir + "/.repositories"
+	return repocommand
 }

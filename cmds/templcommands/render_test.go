@@ -81,8 +81,8 @@ func TestRender(t *testing.T) {
 	}
 	defer TearDown(tempdir)
 
-	retval := render(templatePaths, templateVariables)
-	assert.IsTypef(t, subcommands.ExitSuccess, retval, "Expected success, got %s", err)
+	exitstatus, _ := render(templatePaths, templateVariables)
+	assert.IsTypef(t, subcommands.ExitSuccess, exitstatus, "Expected success, got %s", exitstatus)
 }
 
 func setupRenderTestStructures(setupStructure TestFileStructure) (string, []templatePath, map[templatePath]templateVariablesPath) {
@@ -119,6 +119,12 @@ func setupRenderTestStructures(setupStructure TestFileStructure) (string, []temp
 	}
 
 	return tempdir, templatePaths, templateVariables
+}
+
+func TestRenderFileThatDoesNotExist(t *testing.T) {
+	exit, err := render([]templatePath{templatePath("does_not_exist")}, map[templatePath]templateVariablesPath{"does_not_exist": "does_not_exist"})
+	assert.IsTypef(t, subcommands.ExitFailure, exit, "Expected failure, got %s", err)
+	assert.Errorf(t, err, "open does_not_exist: no such file or directory")
 }
 
 func isVariablesFile(filename string) bool {
