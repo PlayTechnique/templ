@@ -10,11 +10,18 @@ import (
 	"os"
 	"path/filepath"
 	"playtechnique.io/templ/cmds/templcommands"
-	"regexp"
-	"strings"
 )
 
 func init() {
+	debugger, ok := os.LookupEnv("TEMPL_DEBUG_BREAK")
+
+	if ok && debugger != "" {
+		fmt.Println("Attach debugger to PID: ", os.Getpid())
+		fmt.Println("Press enter to continue")
+		fmt.Scanln()
+
+	}
+
 	lvl, ok := os.LookupEnv("TEMPL_LOG_LEVEL")
 	// LOG_LEVEL not set, let's default to debug
 	if !ok {
@@ -38,8 +45,6 @@ func init() {
 func main() {
 	ctx := context.Background()
 	tflags := flag.NewFlagSet("templFlags", flag.ExitOnError)
-	// Create a copy of os.Args
-	argsCopy := append([]string(nil), os.Args...)
 
 	templCommander := subcommands.NewCommander(tflags, os.Args[0])
 
@@ -58,19 +63,16 @@ func main() {
 
 	}
 
-	templateConfigPaths, argsCopy := parseArgsForDynamicConfigOptions(argsCopy)
-
 	templCommander.Explain = help
 
 	templCommander.Register(subcommands.HelpCommand(), "help")
-	templCommander.Register(&templcommands.CatCommand{}, "templates")
-	templCommander.Register(&templcommands.ListCommand{}, "templates")
-	templCommander.Register(&templcommands.RepoCommand{}, "templates")
-	templCommander.Register(templcommands.NewRenderCommand(templateConfigPaths), "templates")
+	templCommander.Register(templcommands.NewCatCommand(templatesDir), "templates")
+	templCommander.Register(templcommands.NewListCommand(templatesDir), "templates")
+	templCommander.Register(templcommands.NewRepoCommand(templatesDir), "templates")
+	templCommander.Register(templcommands.NewRenderCommand(templatesDir), "templates")
 
-	tflags.Parse(argsCopy[1:])
+	tflags.Parse(os.Args[1:])
 
-	os.Chdir(templatesDir)
 	exitval := int(templCommander.Execute(ctx, os.Args))
 	os.Exit(exitval)
 }
@@ -114,61 +116,4 @@ func getTemplatesDirectory() (string, error) {
 
 	return templatesDir, err
 
-}
-
-// The config files for templates are a bit of a pain: they options are not registerable
-// as flags, because we don't know the flag names, and the flags library has
-// a strong reliance on knowing these ahead of time. When flag.Parse() is called, if a flag appears in argv that is not
-// defined already then an error is raised. I tried setting the flags library to continue
-// on error but this is a special case.
-// Therefore I need to parse out the --config-foo options and remove them from os.args ahead of time.
-// We're looking for values of type --config-<some template> path/to/config.yml
-//
-// The flags library allows for these parsings for args that take string vals
-//
-//	-flag=x
-//	--flag=x
-//	-flag x
-//	--flag x
-//
-// We can imagine a template file might be named
-// config-my-thing-that-takes-config-files
-// so verify there's a dash at the beginning, and
-// the string config followed by a dash
-func parseArgsForDynamicConfigOptions(argsCopy []string) (map[string]string, []string) {
-	var templateConfigPaths = make(map[string]string)
-
-	// remove the config file flags; these are dynamically parsed, not statically configured,
-	for i, flag := range argsCopy {
-		var templateName string
-		var configPath string
-		var err error
-
-		if strings.Contains(flag, "-config") {
-			// Remove leading "--" or "-"
-			re := regexp.MustCompile("^[-]+")
-			result := re.ReplaceAllString(flag, "")
-
-			templateName = strings.Split(result, "-")[0]
-
-			if strings.Contains(flag, "=") {
-				parsed := strings.Split(flag, "=")
-				configPath = parsed[1]
-				// Remove --foo-config=bar from args
-				argsCopy = append(argsCopy[:i], argsCopy[i+1:]...)
-			} else {
-				configPath = os.Args[i+1]
-				// Remove --foo-config bar from args
-				argsCopy = append(argsCopy[:i], argsCopy[i+2:]...)
-			}
-
-			templateConfigPaths[templateName], err = filepath.Abs(configPath)
-
-			if err != nil {
-				panic(err)
-			}
-		}
-
-	}
-	return templateConfigPaths, argsCopy
 }

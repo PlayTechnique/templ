@@ -27,8 +27,9 @@ EOF
 
 
 
-echo "Setting logs to debug..."
-export TEMPL_LOG_LEVEL="debug"
+#echo "Setting logs to debug..."
+#export TEMPL_LOG_LEVEL="debug"
+export TEMPL_DEBUG_BREAK="true"
 
 zsh
 
