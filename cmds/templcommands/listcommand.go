@@ -10,9 +10,10 @@ import (
 )
 
 type ListCommand struct {
-	TemplateName string
-	synopsis     string
-	usage        string
+	TemplateName      string
+	templatedirectory string
+	synopsis          string
+	usage             string
 }
 
 var listCommand ListCommand
@@ -38,15 +39,20 @@ func (ListCommand) Usage() string {
 	return listCommand.usage
 }
 
-func (c *ListCommand) SetFlags(_ *flag.FlagSet) {
+func (c ListCommand) SetFlags(_ *flag.FlagSet) {
 
 }
 
-func (*ListCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+func (ListCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	logrus.Debug(f)
-	files, err := listFiles([]string{"."})
+	files, err := listFiles([]string{listCommand.templatedirectory})
 
 	fmt.Println(strings.Join(files, "\n"))
 
 	return err
+}
+
+func NewListCommand(templatedirectory string) ListCommand {
+	listCommand.templatedirectory = templatedirectory
+	return listCommand
 }

@@ -19,6 +19,8 @@ func TestListFiles(t *testing.T) {
 		{name: "One test file in top dir", setupFiles: TestFileStructure{directories: []string{"./"}, files: map[string]string{"./test1": ""}}, startDirs: []string{"./"}, want: []string{"test1"}},
 
 		{name: "One test file one dir down", setupFiles: TestFileStructure{directories: []string{"./", "./a_directory"}, files: map[string]string{"./a_directory/test1": ""}}, startDirs: []string{"./"}, want: []string{"a_directory/test1"}},
+
+		{name: "Hidden directories are not retrieved", setupFiles: TestFileStructure{directories: []string{"./", "./a_directory", "./a_directory/.git"}, files: map[string]string{"./a_directory/test1": "", "./a_directory/.git/should_not_discovered": "this is contentious"}}, startDirs: []string{"./"}, want: []string{"a_directory/test1"}},
 	}
 
 	for _, tt := range testCases {

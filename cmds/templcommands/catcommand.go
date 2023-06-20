@@ -10,9 +10,10 @@ import (
 )
 
 type CatCommand struct {
-	TemplateName string
-	synopsis     string
-	usage        string
+	TemplateName      string
+	templatedirectory string
+	synopsis          string
+	usage             string
 }
 
 var catcommand CatCommand
@@ -40,11 +41,11 @@ func (CatCommand) Usage() string {
 	return catcommand.usage
 }
 
-func (c *CatCommand) SetFlags(_ *flag.FlagSet) {
+func (c CatCommand) SetFlags(_ *flag.FlagSet) {
 
 }
 
-func (*CatCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+func (CatCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 
 	logrus.Debug(f)
 	catArgs := makeSet(f.Args())
@@ -79,4 +80,9 @@ func (*CatCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{})
 	}
 
 	return subcommands.ExitSuccess
+}
+
+func NewCatCommand(templatedirectory string) CatCommand {
+	catcommand.templatedirectory = templatedirectory
+	return catcommand
 }
