@@ -5,18 +5,18 @@ import (
 	"flag"
 	"fmt"
 	"github.com/google/subcommands"
+	"github.com/gwynforthewyn/templ/cmds/templcommands"
 	"github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"path/filepath"
-	"github.com/gwynforthewyn/templ/cmds/templcommands"
 )
 
 func init() {
 	debugger, ok := os.LookupEnv("TEMPL_DEBUG_BREAK")
 
 	if ok && debugger != "" {
-		fmt.Println("Attach debugger to PID: ", os.Getpid())
+		fmt.Println("Attach goland debugger to PID: ", os.Getpid())
 		fmt.Println("Press enter to continue")
 		fmt.Scanln()
 
@@ -58,7 +58,7 @@ func main() {
 	//Super cheap way to get documentation into the usage message.
 	oldHelp := templCommander.Explain
 	help := func(w io.Writer) {
-		fmt.Fprintf(w, "Env Vars: TEMPL_LOG_LEVEL TEMPL_DIR\n")
+		fmt.Fprintf(w, "Env Vars: TEMPL_LOG_LEVEL TEMPL_DIR TEMPL_DEBUG_BREAK\n")
 		oldHelp(w)
 
 	}
@@ -68,6 +68,7 @@ func main() {
 	templCommander.Register(subcommands.HelpCommand(), "help")
 	templCommander.Register(templcommands.NewCatCommand(templatesDir), "templates")
 	templCommander.Register(templcommands.NewListCommand(templatesDir), "templates")
+	templCommander.Register(subcommands.Alias("ls", templcommands.NewListCommand(templatesDir)), "templates")
 	templCommander.Register(templcommands.NewRepoCommand(templatesDir), "templates")
 	templCommander.Register(templcommands.NewRenderCommand(templatesDir), "templates")
 
