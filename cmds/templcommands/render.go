@@ -91,26 +91,31 @@ func (r RenderCommand) Execute(c context.Context, f *flag.FlagSet, _ ...interfac
 		return subcommands.ExitFailure
 	}
 
-	// The version of argv returned by flags.args should only hold arguments now, which is the template files
-	var templateFiles = make([]templatePath, len(f.Args()))
-	var templateVariablesFiles = make(map[templatePath]templateVariablesPath, len(f.Args()))
+	// Paths to the template files. These may optionally have an associated variables file to hydrate with.
+	var templateFilePaths = make([]templatePath, 0)
+	var templateVariablesFilesPaths = make(map[templatePath]templateVariablesPath, 0)
 
-	for _, combo := range f.Args() {
-		logrus.Debug("combo: ", combo)
-		//split the combo into template file and template variables file around the = sign
-		split := strings.Split(combo, "=")
+	// The arguments at this point either read as a name/of/template_file, or as name/of/template_file=path/to/variables.
+	// In the first case, I want to store the path to the template file in an array to hand in to the render command.
+	// In the second case, we store the path to the template file in the same array, and also use that path as an
+	// index in a map, where the value is the variables file's path.
 
-		if len(split) != 2 {
-			logrus.Error("Failed to split template file and template variables file. Input was: ", combo)
-			return subcommands.ExitFailure
+	for _, paths := range f.Args() {
+		var tp templatePath
+
+		if !strings.Contains(paths, "=") {
+			tp = templatePath(r.templatedirectory + "/" + paths)
+		} else {
+			templatePathAndVariablesPath := strings.Split(paths, "=")
+			tp = templatePath(r.templatedirectory + "/" + templatePathAndVariablesPath[0])
+
+			templateVariablesFilesPaths[tp] = templateVariablesPath(r.templatedirectory + "/" + templatePathAndVariablesPath[1])
 		}
 
-		var tp = templatePath(split[0])
-		templateFiles = append(templateFiles, tp)
-		templateVariablesFiles[tp] = templateVariablesPath(split[1])
+		templateFilePaths = append(templateFilePaths, tp)
 	}
 
-	exitStatus, _ := render(templateFiles, rendercommand.templateconfigpaths)
+	exitStatus, _ := render(templateFilePaths, rendercommand.templateconfigpaths)
 	return exitStatus
 }
 
@@ -127,12 +132,22 @@ func render(templateFiles []templatePath, templateVariables map[templatePath]tem
 	for _, templatePath := range templateFiles {
 		templateVariablesFilePath := templateVariables[templatePath]
 
+		// No variables? Just print and move on.
 		if templateVariablesFilePath == "" {
-			logrus.Debug("No template variables file given for template file: ", templatePath)
+			content, err := os.ReadFile(string(templatePath))
+
+			if err != nil {
+				logrus.Error("Failed to read template file: ", templatePath, " with error ", err)
+				continue
+			}
+
+			fmt.Println(string(content))
+
 			continue
-		} else {
-			logrus.Debug("Found template variables file: ", templateVariablesFilePath)
 		}
+
+		logrus.Debug("Found template variables file: ", templateVariablesFilePath)
+
 		// Consume the template variables, which are a yaml file, into a map
 		// of key value pairs.
 		templateVariables, err := getTemplateVariables(templateVariablesFilePath)
