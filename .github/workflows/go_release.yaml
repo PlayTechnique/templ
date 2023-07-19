@@ -1,0 +1,76 @@
+name: "Compile and Release on Tag Push"
+
+on:
+  push:
+    tags:
+      - '*'
+jobs:
+  build-and-release-tag:
+    runs-on: ubuntu-22.04
+    env:
+      OUTPUT_BINARY: templ
+
+    steps:
+      - name: "checkout"
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ env.GITHUB_REF }}
+
+      - name: 'Get Previous tag'
+        id: previoustag
+        uses: "WyriHaximus/github-action-get-previous-tag@v1"
+        with:
+          fallback: 1.0.0 # Optional fal
+
+      - name: "checkout"
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.previoustag.outputs.tag }}
+
+      - name: "compile binary"
+        run: |
+          GOOS=linux go build -o ${{ env.OUTPUT_BINARY }}-linux
+          GOOS=darwin GOARCH=amd-64 go build -o ${{ env.OUTPUT_BINARY }}-mac-amd64
+          GOOS=darwin GOARCH=arm-64 go build -o ${{ env.OUTPUT_BINARY }}-mac-arm64
+
+      - name: Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.previoustag.outputs.tag }}
+          release_name: Release ${{ steps.previoustag.outputs.tag }}
+
+      - name: Upload linux
+        id: upload-linux-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ env.OUTPUT_BINARY }}-linux
+          asset_name: ${{ env.OUTPUT_BINARY }}-linux
+          asset_content_type: binary
+
+      - name: Upload macos
+        id: upload-macos-asset-amd64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ env.OUTPUT_BINARY }}-mac-amd64
+          asset_name: ${{ env.OUTPUT_BINARY }}-mac-amd64
+          asset_content_type: binary
+
+      - name: Upload macos
+        id: upload-macos-asset-arm64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ env.OUTPUT_BINARY }}-mac-arm64
+          asset_name: ${{ env.OUTPUT_BINARY }}-mac-arm64
+          asset_content_type: binary
