@@ -30,8 +30,8 @@ jobs:
       - name: "compile binary"
         run: |
           GOOS=linux go build -o ${{ env.OUTPUT_BINARY }}-linux
-          GOOS=darwin GOARCH=amd-64 go build -o ${{ env.OUTPUT_BINARY }}-mac-amd64
-          GOOS=darwin GOARCH=arm-64 go build -o ${{ env.OUTPUT_BINARY }}-mac-arm64
+          GOOS=darwin GOARCH=amd64 go build -o ${{ env.OUTPUT_BINARY }}-mac-amd64
+          GOOS=darwin GOARCH=arm64 go build -o ${{ env.OUTPUT_BINARY }}-mac-arm64
 
       - name: Release
         id: create_release
