@@ -20,11 +20,10 @@ func TestFindFilesByNameFindsFilesByName(t *testing.T) {
 		tempdir := Setup(tt.setupFiles)
 		defer TearDown(tempdir)
 
-		filesToFind := makeSet(tt.want)
 		// A little prefactoring; if we ever have more than 1 temp dir e.g. when we
 		// support multiple template directories, we're already set up for.
 
-		foundFiles, err := findFilesByName(tt.startDirs[0], filesToFind)
+		foundFiles, err := findFilesByName(tt.startDirs[0], tt.want)
 
 		assert.Nil(t, err)
 		assert.Equal(t, foundFiles, tt.want)

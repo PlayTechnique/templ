@@ -15,7 +15,7 @@ import (
 // Returns:
 // an array of strings, each of which is the path to a file that was found.
 // or an error
-func findFilesByName(root string, names map[string]struct{}) ([]string, error) {
+func findFilesByName(root string, names []string) ([]string, error) {
 	foundFiles := []string{}
 
 	logrus.Debug("Outside filepath.Walk function names: ", names)
@@ -28,8 +28,11 @@ func findFilesByName(root string, names map[string]struct{}) ([]string, error) {
 		logrus.Debug("Inside filepath.Walk function names: ", names)
 
 		// If the file's name is in the set of names
-		if _, ok := names[path]; ok {
-			foundFiles = append(foundFiles, path)
+		for _, name := range names {
+			logrus.Debug("name is <", name, "> path is <", path, ">")
+			if strings.Contains(path, name) {
+				foundFiles = append(foundFiles, path)
+			}
 		}
 
 		return nil
@@ -40,23 +43,6 @@ func findFilesByName(root string, names map[string]struct{}) ([]string, error) {
 	}
 
 	return foundFiles, nil
-}
-
-// MakeSet creates a set from an array of anything.
-// Arguments:
-// arr: an array of anything
-// Returns:
-// a set of strings. Go doesn't have a native set, so use a map with empty structs as the values.
-func makeSet(arr []string) map[string]struct{} {
-
-	set := make(map[string]struct{})
-
-	for _, filename := range arr {
-		logrus.Debug("filename: ", filename)
-		set[filename] = struct{}{}
-	}
-
-	return set
 }
 
 func listFiles(topLevelDirs []string) ([]string, subcommands.ExitStatus) {

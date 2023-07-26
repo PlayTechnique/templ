@@ -84,14 +84,14 @@ func (r RenderCommand) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&r.strict, "no-strict", true, "capitalize output")
 }
 
-func (r RenderCommand) Execute(c context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+func (r RenderCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	if len(f.Args()) == 0 {
 		logrus.Error("No template files given")
 		fmt.Print(r.Usage())
 		return subcommands.ExitFailure
 	}
 
-	// Paths to the template files. These may optionally have an associated variables file to hydrate with.
+	// Data structures to store paths to the template files. These may optionally have an associated variables file to hydrate with.
 	var templateFilePaths = make([]templatePath, 0)
 	var templateVariablesFilesPaths = make(map[templatePath]templateVariablesPath, 0)
 
@@ -100,22 +100,47 @@ func (r RenderCommand) Execute(c context.Context, f *flag.FlagSet, _ ...interfac
 	// In the second case, we store the path to the template file in the same array, and also use that path as an
 	// index in a map, where the value is the variables file's path.
 
-	for _, paths := range f.Args() {
-		var tp templatePath
+	// interrogate each path from args to split into either a set of strings or a path+string
+	// then use findFilesByName to find the templates associated with those strings
+	for _, path := range f.Args() {
+		variablesFile := false
+		var templateVariablesFilePath string
 
-		if !strings.Contains(paths, "=") {
-			tp = templatePath(r.templatedirectory + "/" + paths)
-		} else {
-			templatePathAndVariablesPath := strings.Split(paths, "=")
-			tp = templatePath(r.templatedirectory + "/" + templatePathAndVariablesPath[0])
-
-			templateVariablesFilesPaths[tp] = templateVariablesPath(r.templatedirectory + "/" + templatePathAndVariablesPath[1])
+		if strings.Contains(path, "=") {
+			variablesFile = true
+			templatePathAndVariablesPath := strings.Split(path, "=")
+			path = templatePathAndVariablesPath[0]
+			templateVariablesFilePath = templatePathAndVariablesPath[1]
 		}
 
-		templateFilePaths = append(templateFilePaths, tp)
+		//temp variable to prevent variable shadowing.
+		t, err := findFilesByName(rendercommand.templatedirectory, []string{path})
+
+		if err != nil {
+			logrus.Error(err)
+			return subcommands.ExitFailure
+		} else {
+			logrus.Debug("Found templateFilePaths,", templateFilePaths)
+		}
+
+		for _, tp := range t {
+			p := templatePath(tp)
+
+			templateFilePaths = append(templateFilePaths, p)
+
+			if variablesFile {
+				templateVariablesFilesPaths[p] = templateVariablesPath(templateVariablesFilePath)
+			}
+		}
 	}
 
-	exitStatus, _ := render(templateFilePaths, rendercommand.templateconfigpaths)
+	exitStatus, err := render(templateFilePaths, templateVariablesFilesPaths)
+
+	if err != nil {
+		logrus.Error(err)
+		return subcommands.ExitFailure
+	}
+
 	return exitStatus
 }
 
@@ -191,7 +216,6 @@ func render(templateFiles []templatePath, templateVariables map[templatePath]tem
 
 func getTemplateVariables(templateVariablesFilePath templateVariablesPath) (map[string]string, error) {
 	// Read the YAML file
-
 	yamlFile, err := os.ReadFile(string(templateVariablesFilePath))
 	if err != nil {
 		logrus.Error("Failed to read YAML file at path <", templateVariablesFilePath, "> Err is: ", err)
