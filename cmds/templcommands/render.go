@@ -177,7 +177,6 @@ func render(templateFiles []templatePath, templateVariables map[templatePath]tem
 		// of key value pairs.
 		templateVariables, err := getTemplateVariables(templateVariablesFilePath)
 
-		// Read the template file
 		templateContents, err := os.ReadFile(string(templatePath))
 
 		if err != nil {
