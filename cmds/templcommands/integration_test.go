@@ -16,8 +16,6 @@ func TestCloneAndList(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	defer os.RemoveAll(topLevel)
-
 	var repocommand RepoCommand = NewRepoCommand(topLevel)
 
 	err = repocommand.CloneTheRepositories([]string{"https://github.com/gwynforthewyn/templ"})
@@ -31,11 +29,13 @@ func TestCloneAndList(t *testing.T) {
 		t.Fatal("List command failed")
 	}
 
-	repositoryDir, err := os.Stat(topLevel + "/templ")
-	index := sort.SearchStrings(filesInTemplateDirectory, "templ/main.go")
+	repositoryDir, err := os.Stat(topLevel + "/gwynforthewyn-templ")
+	// We'll use the index to search in an array. The actual index is 1 less than the sort number 🙃
+	index := sort.SearchStrings(filesInTemplateDirectory, "main.go") - 1
 
 	//assert that the templ directory exists
 	assert.True(t, repositoryDir.Mode()&os.ModeDir == os.ModeDir)
-	assert.True(t, filesInTemplateDirectory[index] == "templ/main.go")
+	assert.True(t, filesInTemplateDirectory[index] == "gwynforthewyn-templ/main.go")
 
+	os.RemoveAll(topLevel)
 }
