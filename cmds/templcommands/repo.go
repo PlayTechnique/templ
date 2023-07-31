@@ -69,7 +69,7 @@ func (r RepoCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{
 		logrus.Error(err)
 		return subcommands.ExitFailure
 	} else {
-		logrus.Debug("Cloned repositories from <", f.Args())
+		logrus.Debug("Cloned repositories from <", f.Args(), ">")
 	}
 
 	return subcommands.ExitSuccess
@@ -106,11 +106,11 @@ func (r RepoCommand) CloneTheRepositories(gitUrls []string) error {
 func extractDirNameFromUrl(urlStr string) (string, error) {
 	// Regular expression pattern for GitHub repository extraction
 	patterns := []string{
-		`github\.com[:/]([^/]+)/([^/.]+)(\.git)?$`,        // git@github.com:<owner>/<repo> or https://github.com/<owner>/<repo>
-		`https?://github\.com/([^/]+)/([^/.]+)(\.git)?$`,  // https://github.com/<owner>/<repo>
-		`git://github\.com/([^/]+)/([^/.]+)(\.git)?$`,     // git://github.com/<owner>/<repo>
-		`ssh://git@github\.com/([^/]+)/([^/.]+)(\.git)?$`, // ssh://git@github.com/<owner>/<repo>
-		`git@github\.com:([^/]+)/([^/.]+)(\.git)?$`,       // git@github.com:<owner>/<repo>.git
+		`(.*)[:/]([^/]+)/([^/.]+)(\.git)?$`,        // git@github.com:<owner>/<repo> or https://github.com/<owner>/<repo>
+		`https?://(.*)/([^/]+)/([^/.]+)(\.git)?$`,  // https://github.com/<owner>/<repo>
+		`git://(.*)/([^/]+)/([^/.]+)(\.git)?$`,     // git://github.com/<owner>/<repo>
+		`ssh://git@(.*)/([^/]+)/([^/.]+)(\.git)?$`, // ssh://git@github.com/<owner>/<repo>
+		`git@(.*):([^/]+)/([^/.]+)(\.git)?$`,       // git@github.com:<owner>/<repo>.git
 	}
 
 	// Iterate through the patterns and attempt to match the URL
@@ -119,7 +119,7 @@ func extractDirNameFromUrl(urlStr string) (string, error) {
 		matches := re.FindStringSubmatch(urlStr)
 		if matches != nil {
 			// Return the repository name
-			repository_name := matches[2]
+			repository_name := matches[2] + "-" + matches[3]
 			repo := repository_name
 			return repo, nil
 		}

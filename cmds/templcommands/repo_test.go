@@ -8,7 +8,7 @@ func TestExtractDirNameFromUrl(t *testing.T) {
 	// Verify the extractDirNameFromUrl function
 	// it currently seems to extract both
 
-	expected := "jinx"
+	expected := "gwynforthewyn-jinx"
 	actual, err := extractDirNameFromUrl("https://github.com/gwynforthewyn/jinx")
 
 	if err != nil {
