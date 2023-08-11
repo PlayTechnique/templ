@@ -6,6 +6,7 @@ on:
       - '*'
 jobs:
   build-and-release-tag:
+    if: github.repository == 'playtechnique/templ'
     runs-on: ubuntu-22.04
     env:
       OUTPUT_BINARY: templ
