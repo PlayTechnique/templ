@@ -1,7 +1,6 @@
 #!/bin/bash -elx
 
-THIS_SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-cd "${GITHUB_WORKSPACE} "
+cd "${GITHUB_WORKSPACE}"
 
 templ repo https://github.com/playtechnique/templ_templates
 
