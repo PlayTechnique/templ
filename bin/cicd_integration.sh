@@ -1,7 +1,7 @@
 #!/bin/bash -elx
 
 THIS_SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-cd "${THIS_SCRIPT_DIR}/.."
+cd "${GITHUB_WORKSPACE} "
 
 templ repo https://github.com/playtechnique/templ_templates
 
@@ -10,7 +10,7 @@ templ cat fetch
 
 cat > release-from-tag-config.yaml << EOF
 ---
-Output-Binary: "roflcopter"
+OutputBinary: "roflcopter"
 EOF
 
 echo "Rendering release-from-tag.yaml"

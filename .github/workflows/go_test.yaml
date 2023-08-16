@@ -24,7 +24,8 @@ jobs:
           ref: ${{ env.GITHUB_REF }}
       - name: "install"
         run: |
-          go install .
+          go build .
+          pwd >> $GITHUB_PATH
       - name: "run integration tests"
         run: |
           ./bin/cicd_integration.sh
