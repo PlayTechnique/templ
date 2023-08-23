@@ -32,7 +32,7 @@ func (e ErrNotDirectory) Error() string {
 type CommonRepositoryBehaviour interface {
 	//TemplDestination returns the location on the file system the repository is intended for.
 	TemplDestination() string
-	// Fetch performs a git clone.
+	//Fetch performs a git clone.
 	Fetch() error
 	//Origin returns the origin you initialised the repository with.
 	Origin() string

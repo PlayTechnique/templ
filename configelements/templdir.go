@@ -63,13 +63,17 @@ func (t TemplDir) getTemplatesDirectory() string {
 		templatesDir = t.DefaultDir
 	}
 
-	if _, err := os.Stat(templatesDir); err == nil || os.IsNotExist(err) {
+	_, err = os.Stat(templatesDir)
+
+	if os.IsNotExist(err) {
 		logrus.Info("Did not find <" + templatesDir + "> directory. Creating...")
 		err := os.MkdirAll(templatesDir, 0700)
 
 		if err != nil {
 			panic(err)
 		}
+	} else if err != nil {
+		panic(err)
 	}
 
 	templatesDir, err = filepath.Abs(templatesDir)
