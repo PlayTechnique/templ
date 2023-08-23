@@ -1,7 +1,10 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
+	"github.com/go-git/go-git/v5"
+	"github.com/sirupsen/logrus"
 	"os"
 	"path"
 	"regexp"
@@ -180,5 +183,19 @@ func (r Repository) validateUpstream() error {
 
 // No need for this to be on a repository.
 func fetch(repo Repository) error {
+	_, err := git.PlainClone(repo.Destination, false, &git.CloneOptions{
+		URL:      repo.Upstream,
+		Progress: os.Stdout,
+	})
+
+	if err != nil {
+		if errors.Is(err, git.ErrRepositoryAlreadyExists) {
+			logrus.Error("Repository ", repo.Upstream, " already exists, not cloning: ", err)
+		} else {
+			logrus.Error(err)
+			return err
+		}
+	}
+
 	return nil
 }

@@ -28,4 +28,4 @@ jobs:
           pwd >> $GITHUB_PATH
       - name: "run integration tests"
         run: |
-          ./bin/cicd_integration.sh
+          ./bin/render-integration.sh

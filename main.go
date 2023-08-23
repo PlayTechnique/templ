@@ -12,6 +12,7 @@ import (
 func main() {
 	// string flag called clone. Takes a url as an argument
 	url := flag.String("fetch", "", "clone a git repository from a url. Can be a github url or a local git repository.")
+	flag.Parse()
 
 	createTemplDir()
 	// I use github exclusively right now, so this is a safe bet. If I need to support more version control systems
@@ -56,7 +57,6 @@ func createTemplDir() {
 			if err != nil {
 				fmt.Printf("Could not create configuration directory %s: %w", templDir, err)
 			}
-
 		}
 
 		if err != nil {
