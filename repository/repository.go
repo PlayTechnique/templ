@@ -30,6 +30,12 @@ func (e ErrNotDirectory) Error() string {
 	return "not a directory"
 }
 
+type ErrInvalidRepository struct{}
+
+func (e ErrInvalidRepository) Error() string {
+	return "this repository does not pass validation"
+}
+
 // Abstract behaviours
 // The Repository type implements the CommonRepositoryBehaviour interface.
 type CommonRepositoryBehaviour interface {
@@ -58,26 +64,29 @@ type Repository struct {
 // but they have different purposes. Here, we're trying to determine the right repository type; in NewLocalGitRepository
 // we're looking for errors.
 func NewGitRepository(upstream string) (CommonRepositoryBehaviour, error) {
-
 	if upstream == "" {
 		return nil, ErrInvalidUpstream{}
 	}
 
-	stat, err := os.Stat(upstream)
+	repo, err := NewGitHubRepository(upstream)
 
-	if err != nil {
-		//It's a remote upstream, not a local directory
-		if os.IsNotExist(err) {
-			// Assuming it's a remote upstream if the path doesn't exist
-			return NewGitHubRepository(upstream)
+	if errors.Is(err, ErrInvalidRepository{}) {
+		stat, err := os.Stat(upstream)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if stat.IsDir() {
+			repo, err = NewLocalGitRepository(upstream)
 		}
 	}
 
-	if stat.IsDir() {
-		return NewLocalGitRepository(upstream)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, fmt.Errorf("unhandled scenario for upstream: %s", upstream)
+	return repo, nil
 }
 
 func NewGitHubRepository(upstream string) (CommonRepositoryBehaviour, error) {
@@ -95,6 +104,12 @@ func NewGitHubRepository(upstream string) (CommonRepositoryBehaviour, error) {
 			`ssh://git@(.*)/([^/]+)/([^/.]+)(\.git)?$`, // ssh://git@github.com/<owner>/<repo>
 			`git@(.*):([^/]+)/([^/.]+)(\.git)?$`,       // git@github.com:<owner>/<repo>.git
 		},
+	}
+
+	err := repo.validateUpstream()
+
+	if err != nil {
+		return nil, err
 	}
 
 	var username_reponame string

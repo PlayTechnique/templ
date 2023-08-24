@@ -44,7 +44,7 @@ func createTemplDir() {
 	templDir, err := filepath.Abs(templDir)
 
 	if err != nil {
-		fmt.Printf("Tried to determine absolute path to the templ directory. Failed: %w", err)
+		fmt.Printf("Tried to determine absolute path to the templ directory. Failed: %v", err)
 		panic("")
 	}
 
@@ -55,7 +55,7 @@ func createTemplDir() {
 			err = os.MkdirAll(templDir, 0700)
 
 			if err != nil {
-				fmt.Printf("Could not create configuration directory %s: %w", templDir, err)
+				fmt.Printf("Could not create configuration directory %s: %v", templDir, err)
 			}
 		}
 

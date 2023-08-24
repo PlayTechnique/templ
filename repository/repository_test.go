@@ -88,38 +88,6 @@ func TestGithubDestination(t *testing.T) {
 
 }
 
-//func TestLocalGithubFetch(t *testing.T) {
-//	tempDir := setupTemplDir("templ-testing-local-github-fetch", t)
-//	defer cleanUpTemplDir(tempDir, t)
-//
-//	// The current working directory is the directory repository_test.go is in.
-//	localTestRepo := "../testing-files/local-git-repo"
-//
-//	gitRepo, err := repository.NewLocalGitRepository(localTestRepo)
-//
-//	if err != nil {
-//		t.Errorf("could not find %s: %v", localTestRepo, err)
-//	}
-//
-//	err = gitRepo.Fetch()
-//
-//	if err != nil {
-//		t.Errorf("failure in local git repo fetching %v", err)
-//	}
-//
-//	expectedDestination := "local/local-git-repo/"
-//	info, err := os.Stat(expectedDestination)
-//
-//	if err != nil {
-//		t.Errorf("failure in local git repo checking the destination %s: %v", expectedDestination, err)
-//	}
-//
-//	if !info.IsDir() {
-//		t.Errorf("%s was attempted to fetch into %s, but the destination is not a directory", gitRepo.Origin(), expectedDestination)
-//	}
-//
-//}
-
 // Creates a temporary directory and sets the TEMPL_DIR environment variable.
 func setupTemplDir(pattern string, t *testing.T) string {
 	tempDir, err := os.MkdirTemp("", pattern)
@@ -154,24 +122,14 @@ func cleanUpTemplDir(tempDir string, t *testing.T) {
 	}
 }
 
-//func TestGithubFetchWithInvalidUrl(t *testing.T) {
-//	ghub, err := repository.NewGitRepository("roflcopter")
-//	if err != nil {
-//		t.Errorf(")
-//	}
-//
-//	err := ghub.Fetch()
-//
-//	if _, ok := err.(repository.ErrInvalidUpstream); !ok {
-//		t.Error("Expected ErrInvalidUpstream error, got %v", err)
-//	}
-//
-//	err = ghub.Fetch("http://example.com")
-//
-//	if _, ok := err.(repository.ErrInvalidUpstream); !ok {
-//		t.Error("Expected ErrInvalidUpstream error, got %v", err)
-//	}
-//}
+func TestGithubFetchWithInvalidUrl(t *testing.T) {
+	_, err := repository.NewGitRepository("../definitely-not-real/")
+
+	if !errors.Is(err, repository.ErrInvalidUpstream{}) {
+		t.Errorf("Unexpected error testing git fetch. Expected ErrInvalidUpstream, got %v", err)
+	}
+
+}
 
 //func TestGithubFetchWithValidUrl(t *testing.T) {
 //
