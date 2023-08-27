@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"templ/repository"
+	"templ/test_helpers"
 	"testing"
 )
 
@@ -52,7 +53,7 @@ func TestLocalGitConstructorWithEmptyUrl(t *testing.T) {
 
 func TestLocalGitDestination(t *testing.T) {
 	tempDir := setupTemplDir("templ-local-github-destination", t)
-	defer cleanUpTemplDir(tempDir, t)
+	defer test_helpers.CleanUpTemplDir(tempDir, t)
 
 	// The current working directory is the directory repository_test.go is in.
 	localTestRepo := "../testing-files/local-git-repo"
@@ -71,7 +72,7 @@ func TestLocalGitDestination(t *testing.T) {
 
 func TestGithubDestination(t *testing.T) {
 	tempDir := setupTemplDir("templ-local-github-destination", t)
-	defer cleanUpTemplDir(tempDir, t)
+	defer test_helpers.CleanUpTemplDir(tempDir, t)
 
 	// The current working directory is the directory repository_test.go is in.
 	destDir := fmt.Sprintf("%s/github/PlayTechnique/templ_templates", tempDir)
@@ -106,20 +107,6 @@ func setupTemplDir(pattern string, t *testing.T) string {
 	}
 
 	return tempDir
-}
-
-func cleanUpTemplDir(tempDir string, t *testing.T) {
-	err := os.Unsetenv("TEMPL_DIR")
-
-	if err != nil {
-		t.Errorf("could not unset TEMPL_DIR env var: %v", err)
-	}
-
-	err = os.RemoveAll(tempDir)
-
-	if err != nil {
-		t.Errorf("could not remove temp dir: %v", err)
-	}
 }
 
 func TestGithubFetchWithInvalidUrl(t *testing.T) {
