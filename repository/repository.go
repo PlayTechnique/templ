@@ -8,20 +8,22 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"runtime"
 	"templ/configelements"
 )
 
 // Errors
-type ErrEmptyUpstream struct{}
-
-func (e ErrEmptyUpstream) Error() string {
-	return "no upstream provided"
+type ErrInvalidUpstream struct {
+	ErrorMessage string
 }
 
-type ErrInvalidUpstream struct{}
-
 func (e ErrInvalidUpstream) Error() string {
-	return "invalid upstream: does not match expected patterns."
+	return e.ErrorMessage
+}
+
+func (e ErrInvalidUpstream) Is(target error) bool {
+	_, ok := target.(ErrInvalidUpstream)
+	return ok
 }
 
 type ErrNotDirectory struct{}
@@ -65,25 +67,39 @@ type Repository struct {
 // we're looking for errors.
 func NewGitRepository(upstream string) (CommonRepositoryBehaviour, error) {
 	if upstream == "" {
-		return nil, ErrInvalidUpstream{}
+		_, file, line, _ := runtime.Caller(0)
+		message := fmt.Sprintf("%s:%d: invalid upstream <%s>", file, line, upstream)
+		err := ErrInvalidUpstream{ErrorMessage: message}
+		return nil, err
 	}
 
 	repo, err := NewGitHubRepository(upstream)
 
-	if errors.Is(err, ErrInvalidRepository{}) {
-		stat, err := os.Stat(upstream)
+	if err == nil {
+		return repo, nil
+	}
 
+	// If the error is not of type ErrInvalidUpstream then something went wrong and we should bail.
+	if !errors.Is(err, ErrInvalidUpstream{}) {
 		if err != nil {
-			return nil, err
-		}
-
-		if stat.IsDir() {
-			repo, err = NewLocalGitRepository(upstream)
+			_, file, line, _ := runtime.Caller(0)
+			return repo, fmt.Errorf("%s:%d: %v", file, line, err)
 		}
 	}
 
-	if err != nil {
+	stat, err := os.Stat(upstream)
+
+	if err != nil || !stat.IsDir() {
+		_, file, line, _ := runtime.Caller(0)
+		message := fmt.Sprintf("%s:%d: invalid upstream <%s>", file, line, upstream)
+		err := ErrInvalidUpstream{ErrorMessage: message}
 		return nil, err
+	}
+
+	repo, err = NewLocalGitRepository(upstream)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		return nil, fmt.Errorf("%s:%d: %w", file, line, err)
 	}
 
 	return repo, nil
@@ -91,14 +107,16 @@ func NewGitRepository(upstream string) (CommonRepositoryBehaviour, error) {
 
 func NewGitHubRepository(upstream string) (CommonRepositoryBehaviour, error) {
 	if upstream == "" {
-		return nil, ErrInvalidUpstream{}
+		_, file, line, _ := runtime.Caller(0)
+		message := fmt.Sprintf("%s:%d: invalid upstream <%s>", file, line, upstream)
+		err := ErrInvalidUpstream{ErrorMessage: message}
+		return nil, err
 	}
 
 	repo := Repository{
 		Upstream: upstream,
 		ValidUpstreams: []string{
 			// Regular expression pattern for GitHub repository extraction
-			`(.*)[:/]([^/]+)/([^/.]+)(\.git)?$`,        // git@github.com:<owner>/<repo> or https://github.com/<owner>/<repo>
 			`https?://(.*)/([^/]+)/([^/.]+)(\.git)?$`,  // https://github.com/<owner>/<repo>
 			`git://(.*)/([^/]+)/([^/.]+)(\.git)?$`,     // git://github.com/<owner>/<repo>
 			`ssh://git@(.*)/([^/]+)/([^/.]+)(\.git)?$`, // ssh://git@github.com/<owner>/<repo>
@@ -109,6 +127,11 @@ func NewGitHubRepository(upstream string) (CommonRepositoryBehaviour, error) {
 	err := repo.validateUpstream()
 
 	if err != nil {
+		if errors.Is(err, ErrInvalidUpstream{}) {
+			_, file, line, _ := runtime.Caller(0)
+			message := fmt.Sprintf("%s:%d: invalid upstream <%s>", file, line, upstream)
+			err = ErrInvalidUpstream{ErrorMessage: message}
+		}
 		return nil, err
 	}
 
@@ -132,7 +155,10 @@ func NewGitHubRepository(upstream string) (CommonRepositoryBehaviour, error) {
 
 func NewLocalGitRepository(upstream string) (CommonRepositoryBehaviour, error) {
 	if upstream == "" {
-		return nil, ErrInvalidUpstream{}
+		_, file, line, _ := runtime.Caller(0)
+		message := fmt.Sprintf("%s:%d: invalid upstream <%s>", file, line, upstream)
+		err := ErrInvalidUpstream{ErrorMessage: message}
+		return nil, err
 	}
 
 	stat, err := os.Stat(upstream)

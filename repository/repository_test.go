@@ -1,31 +1,13 @@
 package repository_test
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"templ/repository"
 	"templ/test_helpers"
 	"testing"
 )
-
-//
-//type gitGoMock struct {
-//	mock.Mock
-//}
-//
-//func (g gitGoMock) PlainClone {
-//
-//}
-
-var testLogger *log.Logger
-var buf bytes.Buffer
-
-func init() {
-	testLogger = log.New(&buf, "repositoryTest: ", log.Lshortfile)
-}
 
 func TestRepositoryConstructorWithEmptyUrl(t *testing.T) {
 	_, err := repository.NewGitRepository("")
@@ -49,6 +31,16 @@ func TestLocalGitConstructorWithEmptyUrl(t *testing.T) {
 	if !errors.Is(err, repository.ErrInvalidUpstream{}) {
 		t.Errorf("expected error of type ErrInvalidUpstream, got: %v", err)
 	}
+}
+
+func TestGithubConstructorWithDirectory(t *testing.T) {
+	upstream := "../definitely-not-a-directory"
+	_, err := repository.NewGitHubRepository(upstream)
+
+	if !errors.Is(err, repository.ErrInvalidUpstream{}) {
+		t.Errorf("A github repository should not validate against a non-existent directory. Received %v", err)
+	}
+
 }
 
 func TestLocalGitDestination(t *testing.T) {
@@ -92,9 +84,6 @@ func TestGithubDestination(t *testing.T) {
 // Creates a temporary directory and sets the TEMPL_DIR environment variable.
 func setupTemplDir(pattern string, t *testing.T) string {
 	tempDir, err := os.MkdirTemp("", pattern)
-
-	testLogger.Printf("repository test dir is %s", tempDir)
-	fmt.Print(&buf)
 
 	if err != nil {
 		t.Errorf("could not create temp dir")
