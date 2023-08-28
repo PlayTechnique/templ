@@ -1,7 +1,6 @@
 package configelements_test
 
 import (
-	"fmt"
 	"os"
 	"templ/configelements"
 	"testing"
@@ -32,11 +31,11 @@ func TestSettingTemplDirViaEnv(t *testing.T) {
 
 	defer func() {
 		if err := os.Unsetenv("TEMPL_DIR"); err != nil {
-			fmt.Printf("Error unsetting %s env variable: %v\n", "TEMPL_DIR", err)
+			t.Errorf("Error unsetting %s env variable: %v\n", "TEMPL_DIR", err)
 		}
 
 		if err = os.Remove(newTemplDir); err != nil {
-			fmt.Printf("Error deleting temp directory %s: %v\n", newTemplDir, err)
+			t.Errorf("Error deleting temp directory %s: %v\n", newTemplDir, err)
 		}
 	}()
 
