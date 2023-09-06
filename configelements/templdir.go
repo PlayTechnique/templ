@@ -30,10 +30,10 @@ func NewTemplDir() TemplDir {
 }
 
 func templDirDefault() string {
-	home, foundHome := os.LookupEnv("HOME")
+	home, err := os.UserHomeDir()
 
-	if !foundHome {
-		logrus.Error("HOME env var not found. templ cannot autodiscover the default templates dir, and TEMPL_DIR is not set.")
+	if err != nil {
+		logrus.Error("templ cannot autodiscover home dir to find the default templates dir, and TEMPL_DIR is not set.")
 		panic(ErrTemplDirPrecondition{})
 	}
 

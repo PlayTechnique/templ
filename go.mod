@@ -30,4 +30,5 @@ require (
 	golang.org/x/sys v0.10.0 // indirect
 	golang.org/x/tools v0.6.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

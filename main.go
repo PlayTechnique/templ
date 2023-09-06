@@ -7,12 +7,17 @@ import (
 	"path/filepath"
 	"templ/configelements"
 	"templ/repository"
+	"templ/templatedirectories"
+	"templ/templates"
 )
 
 func main() {
 	// string flag called clone. Takes a url as an argument
 	url := flag.String("fetch", "", "clone a git repository from a url. Can be a github url or a local git repository.")
+	update := flag.Bool("update", false, "iterate over template repositories, calling git update.")
 	flag.Parse()
+
+	candidateTemplates := flag.Args()
 
 	createTemplDir()
 	// I use github exclusively right now, so this is a safe bet. If I need to support more version control systems
@@ -33,6 +38,16 @@ func main() {
 			panic(err)
 		}
 	}
+
+	if *update {
+		err := templatedirectories.Update()
+
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	templates.Render(candidateTemplates)
 }
 
 //Helper functions

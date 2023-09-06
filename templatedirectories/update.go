@@ -1,7 +1,10 @@
 package templatedirectories
 
 import (
+	"errors"
 	"fmt"
+	"github.com/go-git/go-git/v5"
+	"github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -9,10 +12,63 @@ import (
 	"templ/configelements"
 )
 
-//func Update() []string {
-//	startDir := configelements.NewTemplDir().TemplatesDir
-//
-//}
+func Update() error {
+	repositories, err := FindRepositories()
+
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		return fmt.Errorf("%s:%d: %v", file, line, err)
+	}
+
+	for _, repository := range repositories {
+		repo, err := git.PlainOpen(repository)
+
+		if err != nil {
+			_, file, line, _ := runtime.Caller(0)
+			newerr := fmt.Errorf("%s:%d: %v", file, line, err)
+			logrus.Info(newerr)
+			return newerr
+		}
+
+		w, err := repo.Worktree()
+
+		if err != nil {
+			_, file, line, _ := runtime.Caller(0)
+			newerr := fmt.Errorf("%s:%d: %v", file, line, err)
+			logrus.Info(newerr)
+			return newerr
+		}
+
+		err = w.Pull(&git.PullOptions{RemoteName: "origin"})
+
+		if errors.Is(err, git.ErrUnstagedChanges) {
+			logrus.Error("Unstaged changes in ", repository, " not pulling")
+			logrus.Error("Repeated calls to update will report success, but this condition will not have changed.")
+			logrus.Error("Please manually clean up", repository)
+			continue
+		}
+
+		if err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
+			if err != nil {
+				_, file, line, _ := runtime.Caller(0)
+				newerr := fmt.Errorf("%s:%d: failed to pull for repo %s: %v", file, line, repository, err)
+				logrus.Error(newerr)
+				continue
+			}
+		}
+
+		if errors.Is(err, git.NoErrAlreadyUpToDate) {
+			_, file, line, _ := runtime.Caller(0)
+			newerr := fmt.Errorf("%s:%d: %v", file, line, err)
+			logrus.Info(newerr)
+			return newerr
+		}
+
+		logrus.Info("Updated ", repository)
+	}
+
+	return nil
+}
 
 // FindRepositories searches for all .git directories in TemplatesDir. For each discovered .git directory, it appends
 // the containing directory to a list and returns the list.
