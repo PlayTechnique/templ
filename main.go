@@ -20,9 +20,9 @@ func main() {
 		"<templatename> can come in one of two forms. First is a template filename,"+
 		"second is a template filename plus a yaml variables file of key: value pairs which"+
 		"will populate the template file's variables. If no variables file is provided, the utility"+
-		"operates like 'cat' on the file, printing it to stdout.\n\n",
-		//"This utility can also be called in a pipeline as %s templatename | %s FOO=BAR BAM=BAS, for folks who"+
-		//"prefer not to have a variables file.\n\n"
+		"operates like 'cat' on the file, printing it to stdout.\n\n"+
+		"This utility can also be called in a pipeline as %s templatename | %s FOO=BAR BAM=BAS, for folks who"+
+		"prefer not to have a variables file.\n\n",
 		filepath.Base(os.Args[0]), filepath.Base(os.Args[0]), filepath.Base(os.Args[0]))
 
 	flag.Usage = func() { fmt.Println(usage); flag.PrintDefaults(); return }
