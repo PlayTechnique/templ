@@ -25,8 +25,6 @@ name: "World"
 EOF
 
 
-
-
 #echo "Setting logs to debug..."
 #export TEMPL_LOG_LEVEL="debug"
 export TEMPL_DEBUG_BREAK="true"
