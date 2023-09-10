@@ -1,0 +1,3 @@
+[submodule "testing-files"]
+	path = testing-files
+	url = https://github.com/PlayTechnique/templ-testing-files.git
