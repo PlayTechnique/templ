@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"templ/configelements"
 	"templ/repository"
 	"templ/templatedirectories"
@@ -12,7 +13,7 @@ import (
 )
 
 func main() {
-	// string flag called clone. Takes a url as an argument
+	list := flag.Bool("list", false, "list available templates and exit.")
 	url := flag.String("fetch", "", "clone a git repository from a url. Can be a github url or a local git repository.")
 	update := flag.Bool("update", false, "iterate over template repositories, calling git update.")
 
@@ -27,6 +28,21 @@ func main() {
 
 	flag.Usage = func() { fmt.Println(usage); flag.PrintDefaults(); return }
 	flag.Parse()
+
+	if *list {
+		files, err := templatedirectories.List()
+
+		if err != nil {
+			_, file, line, _ := runtime.Caller(0)
+			panic(fmt.Errorf("%s:%d: %v", file, line, err))
+		}
+
+		for _, file := range files {
+			fmt.Println(file)
+		}
+
+		os.Exit(0)
+	}
 
 	candidateTemplates := flag.Args()
 
