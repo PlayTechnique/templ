@@ -5,7 +5,8 @@ cd "${GITHUB_WORKSPACE}"
 templ -fetch https://github.com/playtechnique/templ_templates
 
 echo "Catting the fetch charts script..."
-templ fetch
+# This is a partial name match for a file in templ_templates
+templ fetch_
 
 cat > release-from-tag-config.yaml << EOF
 ---
