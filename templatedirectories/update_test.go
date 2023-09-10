@@ -11,11 +11,12 @@ import (
 
 func TestFindingGitRepositories(t *testing.T) {
 	templDir, expectedRepositories, err := test_helpers.CreateTemplDirWithMultipleRepositories([]string{"templ-update-test", "roflcopter/in-here"})
-	sort.Strings(expectedRepositories)
 
 	if err != nil {
 		t.Errorf("%v", err)
 	}
+
+	sort.Strings(expectedRepositories)
 
 	defer test_helpers.CleanUpTemplDir(templDir, t)
 	err = os.Setenv("TEMPL_DIR", templDir)
