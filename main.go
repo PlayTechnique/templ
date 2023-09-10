@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"golang.org/x/term"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -29,6 +31,29 @@ func main() {
 	flag.Usage = func() { fmt.Println(usage); flag.PrintDefaults(); return }
 	flag.Parse()
 
+	fd := os.Stdin.Fd()
+
+	if !term.IsTerminal(int(fd)) {
+		input, err := io.ReadAll(os.Stdin)
+
+		if err != nil {
+			_, file, line, _ := runtime.Caller(0)
+			panic(fmt.Errorf("%s:%d: %v", file, line, err))
+		}
+
+		variableDefinitions := flag.Args()
+		hydratedTemplate, err := templates.RenderFromString(string(input), variableDefinitions)
+
+		if err != nil {
+			_, file, line, _ := runtime.Caller(0)
+			panic(fmt.Errorf("%s:%d: %v", file, line, err))
+		}
+
+		fmt.Println(hydratedTemplate)
+
+		os.Exit(0)
+	}
+
 	if *list {
 		files, err := templatedirectories.List()
 
@@ -44,7 +69,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	candidateTemplates := flag.Args()
+	templatesAndConfigFilePaths := flag.Args()
 
 	createTemplDir()
 
@@ -74,7 +99,12 @@ func main() {
 		}
 	}
 
-	templates.Render(candidateTemplates)
+	err := templates.Render(templatesAndConfigFilePaths)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		panic(fmt.Errorf("%s:%d: %v", file, line, err))
+	}
+
 }
 
 //Helper functions

@@ -20,3 +20,5 @@ TEMPL_DIR - Defaults to ~/.config/templ. Directory that stores template git repo
 Variable: value
 OtherVariable: othervalue
 ```
+
+`templ templatename | templ KEY=VALUE` - pipeline a render operation! You do not need a config file, you can pipe through templ itself.
