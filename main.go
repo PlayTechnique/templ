@@ -74,7 +74,12 @@ func main() {
 		}
 	}
 
-	templates.Render(candidateTemplates)
+	err := templates.Render(candidateTemplates)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		panic(fmt.Errorf("%s:%d: %v", file, line, err))
+	}
+
 }
 
 //Helper functions
