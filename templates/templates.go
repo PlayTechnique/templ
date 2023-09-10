@@ -1,26 +1,75 @@
 package templates
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
-	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"templ/configelements"
 	"text/template"
 )
 
+type TemplateVariableErr struct {
+	ErrorMessage string
+}
+
+func (t TemplateVariableErr) Error() string {
+	return t.ErrorMessage
+}
+
+func (t TemplateVariableErr) Is(target error) bool {
+	_, ok := target.(TemplateVariableErr)
+	return ok
+}
+
 func Render(templates []string) error {
+	templateFilePaths, templateVariablesFilesPaths, err := parseArgvArguments(templates)
+
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		return fmt.Errorf("%s:%d: %v", file, line, err)
+	}
+
+	err = renderFromFiles(templateFilePaths, templateVariablesFilesPaths)
+
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		return fmt.Errorf("%s:%d: %v", file, line, err)
+	}
+
+	return nil
+}
+
+func RenderFromString(template string, variableDefinitions []string) (hydratedtemplate string, err error) {
+	// If we don't receive any arguments, just pass back up the chain.
+	if len(variableDefinitions) == 0 {
+		return template, nil
+	}
+
+	variables, err := convertFromArrayToKeymap(variableDefinitions)
+
+	if err != nil {
+		return "", err
+	}
+
+	hydratedtemplate, err = renderFromString(template, variables)
+
+	return
+}
+
+func parseArgvArguments(templates []string) ([]string, map[string]string, error) {
 	// Data structures to store paths to the template files. These may optionally have an associated variables file to hydrate with.
 	var templateFilePaths = make([]string, 0)
 	var templateVariablesFilesPaths = make(map[string]string, 0)
 
 	for _, path := range templates {
 		// The arguments at this point either read as a name/of/template_file, or as name/of/template_file=path/to/variables.
-		// In the first case, I want to store the path to the template file in an array to hand in to the render command.
+		// In the first case, I want to store the path to the template file in an array to hand in to the renderFromFiles command.
 		// In the second case, we store the path to the template file in the same array, and also use that path as an
 		// index in a map, where the value is the variables file's path.
 
@@ -41,7 +90,7 @@ func Render(templates []string) error {
 
 		if err != nil {
 			logrus.Error(err)
-			return err
+			return nil, nil, err
 		} else {
 			logrus.Debug("Found templateFilePaths,", templateFilePaths)
 		}
@@ -56,18 +105,10 @@ func Render(templates []string) error {
 			}
 		}
 	}
-
-	err := render(templateFilePaths, templateVariablesFilesPaths)
-
-	if err != nil {
-		logrus.Error(err)
-		return err
-	}
-
-	return nil
+	return templateFilePaths, templateVariablesFilesPaths, nil
 }
 
-func render(templateFiles []string, templateVariables map[string]string) error {
+func renderFromFiles(templateFiles []string, templateVariables map[string]string) error {
 	err := validateTemplatesExist(templateFiles)
 
 	if err != nil {
@@ -85,8 +126,8 @@ func render(templateFiles []string, templateVariables map[string]string) error {
 			content, err := os.ReadFile(string(templatePath))
 
 			if err != nil {
-				logrus.Error("Failed to read template file: ", templatePath, " with error ", err)
-				continue
+				_, file, line, _ := runtime.Caller(0)
+				return fmt.Errorf("%s:%d: %v", file, line, err)
 			}
 
 			fmt.Println(string(content))
@@ -98,45 +139,59 @@ func render(templateFiles []string, templateVariables map[string]string) error {
 
 		// Consume the template variables, which are a yaml file, into a map
 		// of key value pairs.
-		templateVariables, err := getTemplateVariables(templateVariablesFilePath)
-
-		templateContents, err := os.ReadFile(string(templatePath))
+		templateVariables, err := getTemplateVariablesFromYamlFile(templateVariablesFilePath)
 
 		if err != nil {
-			logrus.Info("Failed to read template file: ", templatePath, " with error ", err)
-			return err
-		} else {
-			logrus.Info("Successfully read template file: ", templatePath)
+			_, file, line, _ := runtime.Caller(0)
+			return fmt.Errorf("%s:%d: %v", file, line, err)
+		}
+
+		templateContents, err := os.ReadFile(templatePath)
+
+		if err != nil {
+			_, file, line, _ := runtime.Caller(0)
+			return fmt.Errorf("%s:%d: %v", file, line, err)
 		}
 
 		// Convert template file content to a string
 		templateText := string(templateContents)
-
-		// Create a new template and parse the template text
-		tmpl, err := template.New(string(templatePath)).Parse(templateText)
+		output, err := renderFromString(templateText, templateVariables)
 
 		if err != nil {
-			logrus.Error("Failed to parse template: ", err)
-			return err
-		} else {
-			logrus.Info("Successfully parsed template: ", templatePath)
+			_, file, line, _ := runtime.Caller(0)
+			return fmt.Errorf("%s:%d: %v", file, line, err)
 		}
 
-		// Execute the template with the data
-		err = tmpl.Execute(os.Stdout, templateVariables)
-
-		if err != nil {
-			log.Fatalf("Failed to execute template: %v", err)
-			return err
-		} else {
-			logrus.Info("Successfully executed template: ", templatePath)
-		}
+		fmt.Println(output)
 	}
 
 	return nil
 }
 
-func getTemplateVariables(templateVariablesFilePath string) (map[string]string, error) {
+func renderFromString(templateText string, templateVariables map[string]string) (string, error) {
+	// Create a new template and parse the template text
+	tmpl, err := template.New("roflcopter").Parse(templateText)
+
+	if err != nil {
+		if err != nil {
+			_, file, line, _ := runtime.Caller(0)
+			return "", fmt.Errorf("%s:%d: %v", file, line, err)
+		}
+	}
+
+	// Execute the template with the data
+	var buffer bytes.Buffer
+	err = tmpl.Execute(&buffer, templateVariables)
+
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		return buffer.String(), fmt.Errorf("%s:%d: %v", file, line, err)
+	}
+
+	return buffer.String(), nil
+}
+
+func getTemplateVariablesFromYamlFile(templateVariablesFilePath string) (map[string]string, error) {
 	// Read the YAML file
 	yamlFile, err := os.ReadFile(templateVariablesFilePath)
 	if err != nil {
@@ -215,4 +270,23 @@ func findFilesByName(root string, names []string) ([]string, error) {
 	}
 
 	return foundFiles, nil
+}
+
+func convertFromArrayToKeymap(input []string) (map[string]string, error) {
+	k := make(map[string]string)
+
+	for _, arg := range input {
+		if !strings.Contains(arg, "=") {
+			_, file, line, _ := runtime.Caller(0)
+
+			message := fmt.Sprintf("%s:%d: Argument <%s> not formatted as FOO=BAR", file, line, arg)
+			err := TemplateVariableErr{ErrorMessage: message}
+			return k, err
+		}
+
+		s := strings.Split(arg, "=")
+		k[s[0]] = s[1]
+	}
+
+	return k, nil
 }
