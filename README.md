@@ -1,4 +1,4 @@
-#Templ
+# Templ
 A tool to render templates, and download and update repositories of templates.
 
 ![logo](.github/images/templ-logo-smaller.png)
