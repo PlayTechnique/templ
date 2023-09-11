@@ -33,6 +33,7 @@ jobs:
           GOOS=linux go build -o ${{ env.OUTPUT_BINARY }}-linux
           GOOS=darwin GOARCH=amd64 go build -o ${{ env.OUTPUT_BINARY }}-mac-amd64
           GOOS=darwin GOARCH=arm64 go build -o ${{ env.OUTPUT_BINARY }}-mac-arm64
+          GOOS=windows GOARCH=amd64 go build -o ${{ env.OUTPUT_BINARY }}-win-amd64
 
       - name: Release
         id: create_release
@@ -54,7 +55,7 @@ jobs:
           asset_name: ${{ env.OUTPUT_BINARY }}-linux
           asset_content_type: binary
 
-      - name: Upload macos
+      - name: Upload macos amd64
         id: upload-macos-asset-amd64
         uses: actions/upload-release-asset@v1
         env:
@@ -65,7 +66,7 @@ jobs:
           asset_name: ${{ env.OUTPUT_BINARY }}-mac-amd64
           asset_content_type: binary
 
-      - name: Upload macos
+      - name: Upload macos arm64
         id: upload-macos-asset-arm64
         uses: actions/upload-release-asset@v1
         env:
@@ -74,4 +75,15 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./${{ env.OUTPUT_BINARY }}-mac-arm64
           asset_name: ${{ env.OUTPUT_BINARY }}-mac-arm64
+          asset_content_type: binary
+
+      - name: Upload windows arm64
+        id: upload-windows-asset-arm64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ env.OUTPUT_BINARY }}-win-amd64
+          asset_name: ${{ env.OUTPUT_BINARY }}-win-amd64
           asset_content_type: binary
