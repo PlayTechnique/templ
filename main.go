@@ -46,17 +46,24 @@ func main() {
 			panic(fmt.Errorf("%s:%d: %v", file, line, err))
 		}
 
-		variableDefinitions := flag.Args()
-		hydratedTemplate, err := templates.RenderFromString(string(input), variableDefinitions)
+		// There are 2 conditions that reach this line. The first is that we're piping input into templ.
+		// The second is that we're running in a non-interactive shell, like ci/cd does.
+		// In the first case, we want to deal with the input.
+		// In the second case, we just want to fall out of this block and back to the default logic handling.
+		if len(input) > 0 {
 
-		if err != nil {
-			_, file, line, _ := runtime.Caller(0)
-			panic(fmt.Errorf("%s:%d: %v", file, line, err))
+			variableDefinitions := flag.Args()
+			hydratedTemplate, err := templates.RenderFromString(string(input), variableDefinitions)
+
+			if err != nil {
+				_, file, line, _ := runtime.Caller(0)
+				panic(fmt.Errorf("%s:%d: %v", file, line, err))
+			}
+
+			fmt.Println(hydratedTemplate)
+
+			os.Exit(0)
 		}
-
-		fmt.Println(hydratedTemplate)
-
-		os.Exit(0)
 	}
 
 	if *list {
