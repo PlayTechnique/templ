@@ -62,12 +62,12 @@ func RenderFromString(template string, variableDefinitions []string) (hydratedte
 	return
 }
 
-func parseArgvArguments(templates []string) ([]string, map[string]string, error) {
+func parseArgvArguments(argv []string) ([]string, map[string]string, error) {
 	// Data structures to store paths to the template files. These may optionally have an associated variables file to hydrate with.
 	var templateFilePaths = make([]string, 0)
 	var templateVariablesFilesPaths = make(map[string]string, 0)
 
-	for _, path := range templates {
+	for _, path := range argv {
 		// The arguments at this point either read as a name/of/template_file, or as name/of/template_file=path/to/variables.
 		// In the first case, I want to store the path to the template file in an array to hand in to the renderFromFiles command.
 		// In the second case, we store the path to the template file in the same array, and also use that path as an

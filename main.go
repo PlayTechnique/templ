@@ -14,10 +14,14 @@ import (
 	"templ/templates"
 )
 
+func init() {
+	createTemplDir()
+}
+
 func main() {
 	list := flag.Bool("list", false, "list available templates and exit.")
-	url := flag.String("fetch", "", "clone a git repository from a url. Can be a github url or a local git repository.")
 	update := flag.Bool("update", false, "iterate over template repositories, calling git update.")
+	url := flag.String("fetch", "", "clone a git repository from a url. Can be a github url or a local git repository.")
 
 	usage := fmt.Sprintf("%s <templatename || templatename=variablesfile.yaml> <flags>\n\n"+
 		"<templatename> can come in one of two forms. First is a template filename,"+
@@ -33,6 +37,7 @@ func main() {
 
 	fd := os.Stdin.Fd()
 
+	//Someone's piping into the binary. Read from stdin and deal with the rendering.
 	if !term.IsTerminal(int(fd)) {
 		input, err := io.ReadAll(os.Stdin)
 
@@ -69,10 +74,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	templatesAndConfigFilePaths := flag.Args()
-
-	createTemplDir()
-
 	// If the user has provided a url, clone the repo
 	if *url != "" {
 		// I use github exclusively right now, so this is a safe bet. If I need to support more version control systems
@@ -99,7 +100,8 @@ func main() {
 		}
 	}
 
-	err := templates.Render(templatesAndConfigFilePaths)
+	err := templates.Render(flag.Args())
+
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
 		panic(fmt.Errorf("%s:%d: %v", file, line, err))

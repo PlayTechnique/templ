@@ -2,9 +2,9 @@
 
 cd "${GITHUB_WORKSPACE}"
 
-templ -fetch https://github.com/playtechnique/templ_templates
+templ -fetch https://github.com/PlayTechnique/templ_templates
 
-echo "Catting the fetch charts script..."
+echo "Output the fetch charts script to stdout."
 # This is a partial name match for a file in templ_templates
 templ fetch_
 
