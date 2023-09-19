@@ -58,10 +58,7 @@ func Update() error {
 		}
 
 		if errors.Is(err, git.NoErrAlreadyUpToDate) {
-			_, file, line, _ := runtime.Caller(0)
-			newerr := fmt.Errorf("%s:%d: %v", file, line, err)
-			logrus.Info(newerr)
-			return newerr
+			logrus.Info(err)
 		}
 
 		logrus.Info("Updated ", repository)
