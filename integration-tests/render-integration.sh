@@ -1,4 +1,4 @@
-#!/bin/bash -el
+#!/bin/bash -elx
 
 PROMPT=
 RPROMPT=

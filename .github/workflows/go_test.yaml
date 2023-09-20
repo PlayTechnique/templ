@@ -23,10 +23,15 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: ${{ env.GITHUB_REF }}
+
       - name: "install"
         run: |
           go build .
           pwd >> $GITHUB_PATH
+
       - name: "run integration tests"
         run: |
-          ./bin/cicd-integration.sh
+          for SCRIPT in $(ls integration-tests);
+          do
+            ./integration-tests/${SCRIPT}
+          done
