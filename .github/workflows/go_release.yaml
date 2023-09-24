@@ -28,6 +28,10 @@ jobs:
         with:
           ref: ${{ steps.previoustag.outputs.tag }}
 
+      - name: show we understand previoustag
+        run: |
+          echo "<${{ steps.previoustag.outputs.tag }}>"
+
       - name: "compile binary"
         run: |
           GOOS=linux go build -o ${{ env.OUTPUT_BINARY }}-linux
@@ -88,7 +92,7 @@ jobs:
           asset_name: ${{ env.OUTPUT_BINARY }}-win-amd64
           asset_content_type: binary
     outputs:
-      version_tag: ${{ steps.previoustag.outputs.previous_tag }}
+      version_tag: ${{ steps.previoustag.outputs.tag }}
 
   release-homebrew:
     runs-on: ubuntu-22.04
