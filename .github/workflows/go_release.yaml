@@ -101,9 +101,15 @@ jobs:
     needs: build-and-release-tag
     steps:
       - name: 'Get source code artifact and binary for this version'
-        uses: actions/download-artifact@v2
-        with:
-          name: templ-downloads
+        run: |
+          mkdir templ-downloads
+          cd templ-downloads
+          curl -LO https://github.com/${{ github.repository }}/archive/refs/tags/${{ needs.build-and-release-tag.outputs.version_tag }}.tar.gz
+          #The binary is used to hydrate the formula later.
+          curl -LO https://github.com/${{ github.repository }}/releases/download/${{ needs.build-and-release-tag.outputs.version_tag }}/templ-linux
+          chmod +x templ-linux
+          ls -ltr
+          
 
       - name: 'Generate sha256 sum'
         id: generate-sha256
