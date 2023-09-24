@@ -18,6 +18,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: ${{ env.GITHUB_REF }}
+          fetch-tags: true
 
       - name: 'Get Previous tag'
         id: previoustag
