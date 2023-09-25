@@ -138,12 +138,11 @@ jobs:
 
       - name: 'Prepare a template file'
         run: |
-          sed -i 's|sha256.*|sha256: "'${{ steps.generate-sha256.outputs.sha256 }}'"|' Formula/templ.rb
-          sed -i 's|url.*|url: "'${{ env.SOURCE_CODE_URL }}'"|' Formula/templ.rb
-                       
-                       
-                       
-                       - name: "Add new repo file"
+          sed -i "s/sha256.*/sha256: ${{ steps.generate-sha256.outputs.sha256 }}/" templ.rb
+          sed -i "s/url*/url: ${{ env.SOURCE_CODE_URL }}/" templ.rb
+
+
+      - name: "Add new repo file"
         run: |
           git add Formula/templ.rb
           git commit -m "Auto-Updater from templ: updating for ${{ needs.build-and-release-tag.outputs.version_tag }}"
