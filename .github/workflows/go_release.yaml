@@ -146,6 +146,8 @@ jobs:
 
       - name: "Add new repo file"
         run: |
+          git config --global user.email "github-bot@playtechnique.io"
+          git config --global user.name "Github Bot"
           git add Formula/templ.rb
           git commit -m "Auto-Updater from templ: updating for ${{ needs.build-and-release-tag.outputs.version_tag }}"
           git push
