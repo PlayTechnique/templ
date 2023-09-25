@@ -168,8 +168,8 @@ jobs:
           chmod +x ./templ-downloads/templ
           cat template.templ | ./templ-downloads/templ TAG=${{ needs.build-and-release-tag.outputs.version_tag }} SHASUM=${{ steps.generate-sha256.outputs.sha256 }} > Formula/templ.rb
 
-          - name: "Add new repo file"
-          run: |
-            git add Formula/templ.rb
-            git commit -m "Auto-Updater from templ: updating for ${{ needs.build-and-release-tag.outputs.version_tag }}"
-            git push
+      - name: "Add new repo file"
+        run: |
+          git add Formula/templ.rb
+          git commit -m "Auto-Updater from templ: updating for ${{ needs.build-and-release-tag.outputs.version_tag }}"
+          git push
