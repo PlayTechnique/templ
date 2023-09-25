@@ -33,7 +33,7 @@ jobs:
         run: |
           echo "<${{ steps.previoustag.outputs.tag }}>"
 
-      - name: Check if release already exists
+      - name: 'Check if release already exists'
         id: check_release
         run: |
           RELEASE_URL=$(curl -sH "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
