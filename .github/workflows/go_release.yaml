@@ -18,7 +18,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: ${{ env.GITHUB_REF }}
-          fetch-tags: true
           fetch-depth: 0
 
       - name: 'Get Previous tag'
@@ -34,7 +33,24 @@ jobs:
         run: |
           echo "<${{ steps.previoustag.outputs.tag }}>"
 
+      - name: Check if release already exists
+        id: check_release
+        run: |
+          RELEASE_URL=$(curl -sH "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ steps.previoustag.outputs.tag }}" \
+          | jq -r ".url" )
+          
+          if [[ "$RELEASE_URL" != "null" ]]; then
+            echo "Release already exists. Skipping..."
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+          env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: "compile binary"
+        if: steps.check_release.outputs.exists == 'false'
         run: |
           GOOS=linux go build -o ${{ env.OUTPUT_BINARY }}-linux
           GOOS=darwin GOARCH=amd64 go build -o ${{ env.OUTPUT_BINARY }}-mac-amd64
@@ -42,6 +58,7 @@ jobs:
           GOOS=windows GOARCH=amd64 go build -o ${{ env.OUTPUT_BINARY }}-win-amd64
 
       - name: Release
+        if: steps.check_release.outputs.exists == 'false'
         id: create_release
         uses: actions/create-release@v1
         env:
@@ -51,6 +68,7 @@ jobs:
           release_name: Release ${{ steps.previoustag.outputs.tag }}
 
       - name: Upload linux
+        if: steps.check_release.outputs.exists == 'false'
         id: upload-linux-asset
         uses: actions/upload-release-asset@v1
         env:
@@ -62,6 +80,7 @@ jobs:
           asset_content_type: binary
 
       - name: Upload macos amd64
+        if: steps.check_release.outputs.exists == 'false'
         id: upload-macos-asset-amd64
         uses: actions/upload-release-asset@v1
         env:
@@ -73,6 +92,7 @@ jobs:
           asset_content_type: binary
 
       - name: Upload macos arm64
+        if: steps.check_release.outputs.exists == 'false'
         id: upload-macos-asset-arm64
         uses: actions/upload-release-asset@v1
         env:
@@ -84,6 +104,7 @@ jobs:
           asset_content_type: binary
 
       - name: Upload windows arm64
+        if: steps.check_release.outputs.exists == 'false'
         id: upload-windows-asset-arm64
         uses: actions/upload-release-asset@v1
         env:
@@ -109,14 +130,14 @@ jobs:
           curl -LO https://github.com/${{ github.repository }}/releases/download/${{ needs.build-and-release-tag.outputs.version_tag }}/templ-linux
           chmod +x templ-linux
           ls -ltr
-          
+
 
       - name: 'Generate sha256 sum'
         id: generate-sha256
         run: |
           SHA256=$(shasum -a 256 "templ-downloads/templ-${{ needs.build-and-release-tag.outputs.version_tag }}.tar.gz" | awk '{print $1}')
           echo "templ sha256 is ${SHA256}"
-          echo "::set-output name=sha256::$SHA256"
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
 
       - name: 'Download homebrew-templ'
         uses: actions/checkout@v3
@@ -133,14 +154,14 @@ jobs:
               url "https://github.com/PlayTechnique/templ/archive/refs/tags/{{ .TAG }}.tar.gz"
               sha256 "{{ .SHASUM }}"
               license ""
-            
+          
               depends_on "go" => :build
-            
+          
               def install
               # ENV.deparallelize  # if your formula fails when building in parallel
               system "go", "build", *std_go_args(ldflags: "-s -w")
               end
-            
+          
               test do
               # `test do` will create, run in and delete a temporary directory.
               #
