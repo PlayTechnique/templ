@@ -140,10 +140,14 @@ jobs:
         run: |
           export SHA_VALUE=${{ steps.generate-sha256.outputs.sha256 }}
           export URL_VALUE=${{ env.SOURCE_CODE_URL }}
+          export TAG_VERSION=${{ needs.build-and-release-tag.outputs.version_tag }}
+          export LICENSE="BSD-3-Clause"
           echo "SHA VALUE: ${SHA_VALUE}"
           echo "URL VALUE: ${URL_VALUE}"
           sed -i "s|sha256.*|sha256: \"$SHA_VALUE\"|" Formula/templ.rb
           sed -i "s|url.*|url: \"$URL_VALUE\"|" Formula/templ.rb
+          sed -i "s|version.*|version: \"$TAG_VERSION\"|" Formula/templ.rb
+          sed -i "s|license.*|license: \"$LICENSE\"|" Formula/templ.rb
 
 
       - name: "Add new repo file"
