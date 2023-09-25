@@ -134,6 +134,10 @@ jobs:
           repository: 'PlayTechnique/homebrew-templ'
           ssh-key: '${{ secrets.HOMEBREWTEMPLSSHKEY }}'
 
+      - name: 'show current file system layout'
+        run: |
+          ls -ltr
+
       - name: 'Prepare a template file'
         run: |
           cat > template.templ <<EOF
