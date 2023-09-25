@@ -109,17 +109,15 @@ jobs:
   release-homebrew:
     runs-on: ubuntu-22.04
     needs: build-and-release-tag
+    env:
+      SOURCE_CODE_URL: https://github.com/${{ github.repository }}/archive/refs/tags/${{ needs.build-and-release-tag.outputs.version_tag }}.tar.gz
+
     steps:
       - name: 'Get source code artifact and binary for this version'
         run: |
           mkdir templ-downloads
           cd templ-downloads
-          curl -LO https://github.com/${{ github.repository }}/archive/refs/tags/${{ needs.build-and-release-tag.outputs.version_tag }}.tar.gz
-          #The binary is used to hydrate the formula later.
-          curl -LO https://github.com/${{ github.repository }}/releases/download/${{ needs.build-and-release-tag.outputs.version_tag }}/templ-linux
-          chmod +x templ-linux
-          ls -ltr
-
+          curl -LO ${{ env.SOURCE_CODE_URL }}
 
       - name: 'Generate sha256 sum'
         id: generate-sha256
@@ -140,37 +138,9 @@ jobs:
 
       - name: 'Prepare a template file'
         run: |
-          cat > template.templ <<EOF
-          class Templ < Formula
-            desc "A templating tool that downloads git repositories."
-            homepage "https://github.com/PlayTechnique/templ"
-            url "https://github.com/PlayTechnique/templ/archive/refs/tags/{{ .TAG }}.tar.gz"
-            sha256 "{{ .SHASUM }}"
-            license "BSD-3-Clause"
-          
-            depends_on "go" => :build
-          
-            def install
-              # ENV.deparallelize  # if your formula fails when building in parallel
-              system "go", "build", *std_go_args(ldflags: "-s -w")
-            end
-          
-            test do
-              # `test do` will create, run in and delete a temporary directory.
-              #
-              # This test will fail and we won't accept that! For Homebrew/homebrew-core
-              # this will need to be a test that verifies the functionality of the
-              # software. Run the test with `brew test templ`. Options passed
-              # to `brew install` such as `--HEAD` also need to be provided to `brew test`.
-              #
-              # The installed folder is not in the path, so use the entire path to any
-              # executables being tested: `system "#{bin}/program", "do", "something"`.
-              system "false"
-            end
-          EOF
-  
-          chmod +x ./templ-downloads/templ
-          cat template.templ | ./templ-downloads/templ TAG=${{ needs.build-and-release-tag.outputs.version_tag }} SHASUM=${{ steps.generate-sha256.outputs.sha256 }} > Formula/templ.rb
+          sed -i 's/sha256.*/sha256: "${{ steps.generate-sha256.outputs.sha256 }}"/' Formula/templ.rb
+          sed -i 's/url*/url: "${{ env.SOURCE_CODE_URL }}"/' Formula/templ.rb
+
 
       - name: "Add new repo file"
         run: |
