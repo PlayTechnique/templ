@@ -138,8 +138,8 @@ jobs:
 
       - name: 'Prepare a template file'
         run: |
-          SHA_VALUE=${{ steps.generate-sha256.outputs.sha256 }}
-          URL_VALUE=${{ env.SOURCE_CODE_URL }}
+          export SHA_VALUE=${{ steps.generate-sha256.outputs.sha256 }}
+          export URL_VALUE=${{ env.SOURCE_CODE_URL }}
           sed -i "s|sha256.*|sha256: \"$SHA_VALUE\"|" Formula/templ.rb
           sed -i "s|url.*|url: \"$URL_VALUE\"|" Formula/templ.rb
 
