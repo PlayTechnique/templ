@@ -1,0 +1,77 @@
+name: "Update homebrew repository to release"
+
+on:
+  release:
+    types: [ published ]
+
+jobs:
+  update-and-release-homebrew:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: "checkout homebrew_templ"
+        uses: actions/checkout@v3
+        with:
+          repository: "PlayTechnique/homebrew-templ"
+
+      - name: "get templ source code checksum"
+        run: |
+
+      - name: "Replace homebrew formula"
+        run: |
+          GOOS=linux go build -o ${{ env.OUTPUT_BINARY }}-linux
+          GOOS=darwin GOARCH=amd64 go build -o ${{ env.OUTPUT_BINARY }}-mac-amd64
+          GOOS=darwin GOARCH=arm64 go build -o ${{ env.OUTPUT_BINARY }}-mac-arm64
+          GOOS=windows GOARCH=amd64 go build -o ${{ env.OUTPUT_BINARY }}-win-amd64
+
+      - name: Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.previoustag.outputs.tag }}
+          release_name: Release ${{ steps.previoustag.outputs.tag }}
+
+      - name: Upload linux
+        id: upload-linux-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ env.OUTPUT_BINARY }}-linux
+          asset_name: ${{ env.OUTPUT_BINARY }}-linux
+          asset_content_type: binary
+
+      - name: Upload macos amd64
+        id: upload-macos-asset-amd64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ env.OUTPUT_BINARY }}-mac-amd64
+          asset_name: ${{ env.OUTPUT_BINARY }}-mac-amd64
+          asset_content_type: binary
+
+      - name: Upload macos arm64
+        id: upload-macos-asset-arm64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ env.OUTPUT_BINARY }}-mac-arm64
+          asset_name: ${{ env.OUTPUT_BINARY }}-mac-arm64
+          asset_content_type: binary
+
+      - name: Upload windows arm64
+        id: upload-windows-asset-arm64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ env.OUTPUT_BINARY }}-win-amd64
+          asset_name: ${{ env.OUTPUT_BINARY }}-win-amd64
+          asset_content_type: binary

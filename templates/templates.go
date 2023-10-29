@@ -8,6 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"templ/configelements"
@@ -60,6 +61,95 @@ func RenderFromString(template string, variableDefinitions []string) (hydratedte
 	hydratedtemplate, err = renderFromString(template, variables)
 
 	return
+}
+
+func convertFromArrayToKeymap(input []string) (map[string]string, error) {
+	k := make(map[string]string)
+
+	for _, arg := range input {
+		if !strings.Contains(arg, "=") {
+			_, file, line, _ := runtime.Caller(0)
+
+			message := fmt.Sprintf("%s:%d: Argument <%s> not formatted as FOO=BAR", file, line, arg)
+			err := TemplateVariableErr{ErrorMessage: message}
+			return k, err
+		}
+
+		s := strings.Split(arg, "=")
+		k[s[0]] = s[1]
+	}
+
+	return k, nil
+}
+
+func escapeTemplate(templateText string) string {
+	// Define a regular expression pattern to find potential github interpolation sequences
+	pattern := `\$\{\{[^\}]+\}\}`
+
+	// Replace potential constructs with escaped versions
+	re := regexp.MustCompile(pattern)
+
+	return re.ReplaceAllString(templateText, `{{ printf "%s" "$0" }}`)
+}
+
+// findFilesByName searches a directory for file names that match those provided in a set of strings.
+// Arguments:
+// root: the directory to search
+// names: a set of filenames to search for
+// Returns:
+// an array of strings, each of which is the path to a file that was found.
+// or an error
+func findFilesByName(root string, names []string) ([]string, error) {
+	foundFiles := []string{}
+
+	logrus.Debug("Outside filepath.Walk function names: ", names)
+
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		logrus.Debug("Inside filepath.Walk function names: ", names)
+
+		// If the file's name is in the set of names
+		for _, name := range names {
+			logrus.Debug("name is <", name, "> path is <", path, ">")
+			if strings.Contains(path, name) {
+				foundFiles = append(foundFiles, path)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return foundFiles, nil
+}
+
+func getTemplateVariablesFromYamlFile(templateVariablesFilePath string) (map[string]string, error) {
+
+	// Read the YAML file
+	yamlFile, err := os.ReadFile(templateVariablesFilePath)
+	if err != nil {
+		logrus.Error("Failed to read YAML file at path <", templateVariablesFilePath, "> Err is: ", err)
+		return nil, err
+	}
+
+	// Create a map to store the parsed YAML data
+	data := make(map[string]string)
+
+	// Unmarshal the YAML data into the map
+	err = yaml.Unmarshal(yamlFile, &data)
+
+	if err != nil {
+		logrus.Error("Failed to unmarshal YAML: ", err)
+		return nil, err
+	}
+
+	return data, err
 }
 
 func parseArgvArguments(argv []string) ([]string, map[string]string, error) {
@@ -169,48 +259,24 @@ func renderFromFiles(templateFiles []string, templateVariables map[string]string
 }
 
 func renderFromString(templateText string, templateVariables map[string]string) (string, error) {
-	// Create a new template and parse the template text
-	tmpl, err := template.New("roflcopter").Parse(templateText)
+	escapedTemplateText := escapeTemplate(templateText)
+	tmpl, err := template.New("roflcopter").Parse(escapedTemplateText)
 
-	if err != nil {
-		if err != nil {
-			_, file, line, _ := runtime.Caller(0)
-			return "", fmt.Errorf("%s:%d: %v", file, line, err)
-		}
+	if err != nil && !strings.Contains(err.Error(), "not defined") {
+		_, file, line, _ := runtime.Caller(0)
+		return "", fmt.Errorf("%s:%d: %v", file, line, err)
 	}
 
 	// Execute the template with the data
 	var buffer bytes.Buffer
 	err = tmpl.Execute(&buffer, templateVariables)
 
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "not defined") {
 		_, file, line, _ := runtime.Caller(0)
 		return buffer.String(), fmt.Errorf("%s:%d: %v", file, line, err)
 	}
 
 	return buffer.String(), nil
-}
-
-func getTemplateVariablesFromYamlFile(templateVariablesFilePath string) (map[string]string, error) {
-	// Read the YAML file
-	yamlFile, err := os.ReadFile(templateVariablesFilePath)
-	if err != nil {
-		logrus.Error("Failed to read YAML file at path <", templateVariablesFilePath, "> Err is: ", err)
-		return nil, err
-	}
-
-	// Create a map to store the parsed YAML data
-	data := make(map[string]string)
-
-	// Unmarshal the YAML data into the map
-	err = yaml.Unmarshal(yamlFile, &data)
-
-	if err != nil {
-		logrus.Error("Failed to unmarshal YAML: ", err)
-		return nil, err
-	}
-
-	return data, err
 }
 
 func validateTemplatesExist(templateFiles []string) error {
@@ -233,60 +299,4 @@ func validateTemplatesExist(templateFiles []string) error {
 	}
 
 	return nil
-}
-
-// findFilesByName searches a directory for file names that match those provided in a set of strings.
-// Arguments:
-// root: the directory to search
-// names: a set of filenames to search for
-// Returns:
-// an array of strings, each of which is the path to a file that was found.
-// or an error
-func findFilesByName(root string, names []string) ([]string, error) {
-	foundFiles := []string{}
-
-	logrus.Debug("Outside filepath.Walk function names: ", names)
-
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		logrus.Debug("Inside filepath.Walk function names: ", names)
-
-		// If the file's name is in the set of names
-		for _, name := range names {
-			logrus.Debug("name is <", name, "> path is <", path, ">")
-			if strings.Contains(path, name) {
-				foundFiles = append(foundFiles, path)
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return foundFiles, nil
-}
-
-func convertFromArrayToKeymap(input []string) (map[string]string, error) {
-	k := make(map[string]string)
-
-	for _, arg := range input {
-		if !strings.Contains(arg, "=") {
-			_, file, line, _ := runtime.Caller(0)
-
-			message := fmt.Sprintf("%s:%d: Argument <%s> not formatted as FOO=BAR", file, line, arg)
-			err := TemplateVariableErr{ErrorMessage: message}
-			return k, err
-		}
-
-		s := strings.Split(arg, "=")
-		k[s[0]] = s[1]
-	}
-
-	return k, nil
 }
