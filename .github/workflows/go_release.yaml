@@ -126,17 +126,7 @@ jobs:
           echo "templ sha256 is ${SHA256}"
           echo "sha256=$SHA256" >> $GITHUB_OUTPUT
 
-      - name: 'Download homebrew-templ'
-        uses: actions/checkout@v3
-        with:
-          repository: 'PlayTechnique/homebrew-templ'
-          ssh-key: '${{ secrets.HOMEBREWTEMPLSSHKEY }}'
-
-      - name: 'show current file system layout'
-        run: |
-          ls -ltr
-
-      - name: 'Prepare a template file'
+      - name: 'Trigger homebrew-templ action'
         run: |
           export SHA_VALUE=${{ steps.generate-sha256.outputs.sha256 }}
           export URL_VALUE=${{ env.SOURCE_CODE_URL }}
@@ -144,16 +134,7 @@ jobs:
           export LICENSE="BSD-3-Clause"
           echo "SHA VALUE: ${SHA_VALUE}"
           echo "URL VALUE: ${URL_VALUE}"
-          sed -i "s|sha256.*|sha256 \"$SHA_VALUE\"|" Formula/templ.rb
-          sed -i "s|url.*|url \"$URL_VALUE\"|" Formula/templ.rb
-          sed -i "s|version.*|version \"$TAG_VERSION\"|" Formula/templ.rb
-          sed -i "s|license.*|license \"$LICENSE\"|" Formula/templ.rb
+          echo "TAG VERSION: ${TAG_VERSION}"
 
-
-      - name: "Add new repo file"
-        run: |
-          git config --global user.email "github-bot@playtechnique.io"
-          git config --global user.name "Github Bot"
-          git add Formula/templ.rb
-          git commit -m "Auto-Updater from templ: updating for ${{ needs.build-and-release-tag.outputs.version_tag }}"
-          git push
+          gh login ${{ secrets.HOMEBREW_TEMPL_PAT }}
+          gh workflow run -R PlayTechnique/homebrew-templ -f SHA256=${SHA_VALUE} -f DOWNLOAD_URL=${URL_VALUE} -f VERSION=${TAG_VERSION}
