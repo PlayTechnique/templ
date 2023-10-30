@@ -136,5 +136,5 @@ jobs:
           echo "URL VALUE: ${URL_VALUE}"
           echo "TAG VERSION: ${TAG_VERSION}"
 
-          echo  ${{ secrets.HOMEBREW_TEMPL_PAT }} | gh auth login -h github.com --with-token
-          gh workflow run -R PlayTechnique/homebrew-templ -f SHA256=${SHA_VALUE} -f DOWNLOAD_URL=${URL_VALUE} -f VERSION=${TAG_VERSION}
+          echo  ${{ secrets.HOMEBREW_TEMPL_PAT }} | gh auth login -h github.com --with-tokendxbfnklmDXCFRGVB KLO,
+          gh workflow run update-formula.yaml -R PlayTechnique/homebrew-templ -f SHA256=${SHA_VALUE} -f DOWNLOAD_URL=${URL_VALUE} -f VERSION=${TAG_VERSION}
