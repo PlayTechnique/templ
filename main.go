@@ -19,9 +19,9 @@ func init() {
 }
 
 func main() {
-	list := flag.Bool("list", false, "list available templates and exit.")
-	update := flag.Bool("update", false, "iterate over template repositories, calling git update.")
-	url := flag.String("fetch", "", "clone a git repository from a url. Can be a github url or a local git repository.")
+	list := flag.Bool("l", false, "list available templates and exit.")
+	update := flag.Bool("u", false, "iterate over template repositories, calling git update.")
+	url := flag.String("f", "", "clone/fetch a git repository from a url. Can be a github url or a local git repository.")
 
 	usage := fmt.Sprintf("%s <templatename || templatename=variablesfile.yaml> <flags>\n\n"+
 		"<templatename> can come in one of two forms. First is a template filename,"+
