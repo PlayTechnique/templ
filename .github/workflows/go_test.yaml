@@ -1,0 +1,37 @@
+name: 'Test'
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  unit-test:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: "checkout"
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ env.GITHUB_REF }}
+          submodules: true
+      - name: "run tests"
+        run: |
+          go test -v ./...
+  integration-test:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: "checkout"
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ env.GITHUB_REF }}
+
+      - name: "install"
+        run: |
+          go build .
+          pwd >> $GITHUB_PATH
+
+      - name: "run integration tests"
+        run: |
+          for SCRIPT in $(ls integration-tests);
+          do
+            ./integration-tests/${SCRIPT}
+          done
