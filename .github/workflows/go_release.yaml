@@ -50,7 +50,7 @@ jobs:
       - name: "compile binary"
         if: steps.check_release.outputs.exists == 'false'
         run: |
-          GOOS=linux go build -o ${{ env.OUTPUT_BINARY }}-linux
+          GOOS=linux GOARCH=amd64 go build -o ${{ env.OUTPUT_BINARY }}-linux
           GOOS=darwin GOARCH=amd64 go build -o ${{ env.OUTPUT_BINARY }}-mac-amd64
           GOOS=darwin GOARCH=arm64 go build -o ${{ env.OUTPUT_BINARY }}-mac-arm64
           GOOS=windows GOARCH=amd64 go build -o ${{ env.OUTPUT_BINARY }}-win-amd64
@@ -94,10 +94,12 @@ jobs:
           asset_name: ${{ env.OUTPUT_BINARY }}-mac-arm64
           asset_content_type: binary
 
-      - name: Upload windows arm64
+      - name: Upload windows amd64
         if: steps.check_release.outputs.exists == 'false'
-        id: upload-windows-asset-arm64
+        id: upload-windows-asset-amd64
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./${{ env.OUTPUT_BINARY }}-win-amd64
