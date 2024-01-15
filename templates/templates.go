@@ -210,9 +210,15 @@ func renderFromString(templateText string, templateVariableDefinitions map[strin
 			if strings.Contains(err.Error(), "not defined") {
 				reformedTemplate.WriteString(section)
 				continue
+			} else if strings.Contains(err.Error(), "bad character") {
+				_, file, line, _ := runtime.Caller(0)
+				return "", fmt.Errorf("\nThe 'bad character' error from the go template engine normally means that you have a disallowed "+
+					"character inside your template variable name. \nHere's what templ was working on:\n"+
+					"%s:%d: Failed on section:\n--- %s\n---\n Error is: %v", file, line, section, err)
 			} else {
 				_, file, line, _ := runtime.Caller(0)
-				return "", fmt.Errorf("%s:%d: %v", file, line, err)
+				return "", fmt.Errorf("%s:%d: Failed on section:\n--- %s\n---\n Error is: %v", file, line, section, err)
+
 			}
 		}
 
