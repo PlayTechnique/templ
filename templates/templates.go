@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"templ/configelements"
 	"text/template"
@@ -28,6 +29,8 @@ func (t TemplateVariableErr) Is(target error) bool {
 }
 
 func Render(templates []string) error {
+	//TODO: template rendering has no business understanding parsing argv. Move parseArgvArguments out into
+	//TODO: main and call it something like "prepRenderArguments".
 	templateFilePaths, templateVariablesFilesPaths, err := parseArgvArguments(templates)
 
 	if err != nil {
@@ -168,27 +171,64 @@ func renderFromFiles(templateFiles []string, templateVariables map[string]string
 	return nil
 }
 
-func renderFromString(templateText string, templateVariables map[string]string) (string, error) {
-	// Create a new template and parse the template text
-	tmpl, err := template.New("roflcopter").Parse(templateText)
+// renderFromString takes a string containing a template, and a map of FOO=bar definitions and returns
+// a rendered template.
+// Problematic workflow:
+// Templates are arbitrary files, and a lot of template formats use some variation on the {{}} delimiters to identify
+// strings that should be substituted. When parsing these, the golang template engine sees these double braces and tries
+// to replace these itself, which causes errors.
+// For example, here's a subsection of a github workflow:
+// step: "do something cool"
+// =====
+// run : |
+//
+//	sed {{ .FILENAME }} -i /${{ env.PATTERN }}/sub'
+//
+// =====
+// In this file, I want templ to edit {{ .FILENAME }}, but the section ${{ env.PATTERN }} will cause an error because templ
+// isn't handing in an object called env with a PATTERN member.
+// Solution:
+// To work around this, templ splits all incoming files on the string '{{'. It then either successfully substitutes
+// a variable or it ignores any error rendering that subsection. Tada!
+func renderFromString(templateText string, templateVariableDefinitions map[string]string) (string, error) {
 
-	if err != nil {
+	templateSections := strings.SplitAfter(templateText, "}}")
+	var reformedTemplate bytes.Buffer
+
+	for i, section := range templateSections {
+		// Create a new template and parse the template text
+		// TODO: use the filename as the template name
+		name := "roflcopter" + strconv.Itoa(i)
+
+		tmpl, err := template.New(name).Parse(section)
+
+		if err != nil {
+			// If the error reads like this:
+			// `variable env.FOO not defined`
+			// then we're in the error condition identified in the header comment. Ignore the error, write the contents
+			// of the template section to our template buffer and go on to the next loop.
+			if strings.Contains(err.Error(), "not defined") {
+				reformedTemplate.WriteString(section)
+				continue
+			} else {
+				_, file, line, _ := runtime.Caller(0)
+				return "", fmt.Errorf("%s:%d: %v", file, line, err)
+			}
+		}
+
+		// Execute the template with the data
+		var buffer bytes.Buffer
+		err = tmpl.Execute(&buffer, templateVariableDefinitions)
+
 		if err != nil {
 			_, file, line, _ := runtime.Caller(0)
-			return "", fmt.Errorf("%s:%d: %v", file, line, err)
+			return buffer.String(), fmt.Errorf("%s:%d: %v", file, line, err)
 		}
+
+		reformedTemplate.Write(buffer.Bytes())
 	}
 
-	// Execute the template with the data
-	var buffer bytes.Buffer
-	err = tmpl.Execute(&buffer, templateVariables)
-
-	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return buffer.String(), fmt.Errorf("%s:%d: %v", file, line, err)
-	}
-
-	return buffer.String(), nil
+	return reformedTemplate.String(), nil
 }
 
 func getTemplateVariablesFromYamlFile(templateVariablesFilePath string) (map[string]string, error) {
@@ -235,6 +275,7 @@ func validateTemplatesExist(templateFiles []string) error {
 	return nil
 }
 
+// TODO: Why do template rendering functions care where the files are? Move this to main or somewhere.
 // findFilesByName searches a directory for file names that match those provided in a set of strings.
 // Arguments:
 // root: the directory to search

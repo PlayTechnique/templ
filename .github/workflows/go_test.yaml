@@ -16,6 +16,7 @@ jobs:
       - name: "run tests"
         run: |
           go test -v ./...
+
   integration-test:
     runs-on: ubuntu-22.04
     steps:
