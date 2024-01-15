@@ -8,8 +8,8 @@ import (
 	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"templ/configelements"
 	"text/template"
@@ -29,6 +29,8 @@ func (t TemplateVariableErr) Is(target error) bool {
 }
 
 func Render(templates []string) error {
+	//TODO: template rendering has no business understanding parsing argv. Move parseArgvArguments out into
+	//TODO: main and call it something like "prepRenderArguments".
 	templateFilePaths, templateVariablesFilesPaths, err := parseArgvArguments(templates)
 
 	if err != nil {
@@ -61,95 +63,6 @@ func RenderFromString(template string, variableDefinitions []string) (hydratedte
 	hydratedtemplate, err = renderFromString(template, variables)
 
 	return
-}
-
-func convertFromArrayToKeymap(input []string) (map[string]string, error) {
-	k := make(map[string]string)
-
-	for _, arg := range input {
-		if !strings.Contains(arg, "=") {
-			_, file, line, _ := runtime.Caller(0)
-
-			message := fmt.Sprintf("%s:%d: Argument <%s> not formatted as FOO=BAR", file, line, arg)
-			err := TemplateVariableErr{ErrorMessage: message}
-			return k, err
-		}
-
-		s := strings.Split(arg, "=")
-		k[s[0]] = s[1]
-	}
-
-	return k, nil
-}
-
-func escapeTemplate(templateText string) string {
-	// Define a regular expression pattern to find potential github interpolation sequences
-	pattern := `\$\{\{[^\}]+\}\}`
-
-	// Replace potential constructs with escaped versions
-	re := regexp.MustCompile(pattern)
-
-	return re.ReplaceAllString(templateText, `{{ printf "%s" "$0" }}`)
-}
-
-// findFilesByName searches a directory for file names that match those provided in a set of strings.
-// Arguments:
-// root: the directory to search
-// names: a set of filenames to search for
-// Returns:
-// an array of strings, each of which is the path to a file that was found.
-// or an error
-func findFilesByName(root string, names []string) ([]string, error) {
-	foundFiles := []string{}
-
-	logrus.Debug("Outside filepath.Walk function names: ", names)
-
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		logrus.Debug("Inside filepath.Walk function names: ", names)
-
-		// If the file's name is in the set of names
-		for _, name := range names {
-			logrus.Debug("name is <", name, "> path is <", path, ">")
-			if strings.Contains(path, name) {
-				foundFiles = append(foundFiles, path)
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return foundFiles, nil
-}
-
-func getTemplateVariablesFromYamlFile(templateVariablesFilePath string) (map[string]string, error) {
-
-	// Read the YAML file
-	yamlFile, err := os.ReadFile(templateVariablesFilePath)
-	if err != nil {
-		logrus.Error("Failed to read YAML file at path <", templateVariablesFilePath, "> Err is: ", err)
-		return nil, err
-	}
-
-	// Create a map to store the parsed YAML data
-	data := make(map[string]string)
-
-	// Unmarshal the YAML data into the map
-	err = yaml.Unmarshal(yamlFile, &data)
-
-	if err != nil {
-		logrus.Error("Failed to unmarshal YAML: ", err)
-		return nil, err
-	}
-
-	return data, err
 }
 
 func parseArgvArguments(argv []string) ([]string, map[string]string, error) {
@@ -258,25 +171,86 @@ func renderFromFiles(templateFiles []string, templateVariables map[string]string
 	return nil
 }
 
-func renderFromString(templateText string, templateVariables map[string]string) (string, error) {
-	escapedTemplateText := escapeTemplate(templateText)
-	tmpl, err := template.New("roflcopter").Parse(escapedTemplateText)
+// renderFromString takes a string containing a template, and a map of FOO=bar definitions and returns
+// a rendered template.
+// Problematic workflow:
+// Templates are arbitrary files, and a lot of template formats use some variation on the {{}} delimiters to identify
+// strings that should be substituted. When parsing these, the golang template engine sees these double braces and tries
+// to replace these itself, which causes errors.
+// For example, here's a subsection of a github workflow:
+// step: "do something cool"
+// =====
+// run : |
+//
+//	sed {{ .FILENAME }} -i /${{ env.PATTERN }}/sub'
+//
+// =====
+// In this file, I want templ to edit {{ .FILENAME }}, but the section ${{ env.PATTERN }} will cause an error because templ
+// isn't handing in an object called env with a PATTERN member.
+// Solution:
+// To work around this, templ splits all incoming files on the string '{{'. It then either successfully substitutes
+// a variable or it ignores any error rendering that subsection. Tada!
+func renderFromString(templateText string, templateVariableDefinitions map[string]string) (string, error) {
 
-	if err != nil && !strings.Contains(err.Error(), "not defined") {
-		_, file, line, _ := runtime.Caller(0)
-		return "", fmt.Errorf("%s:%d: %v", file, line, err)
+	templateSections := strings.SplitAfter(templateText, "}}")
+	var reformedTemplate bytes.Buffer
+
+	for i, section := range templateSections {
+		// Create a new template and parse the template text
+		// TODO: use the filename as the template name
+		name := "roflcopter" + strconv.Itoa(i)
+
+		tmpl, err := template.New(name).Parse(section)
+
+		if err != nil {
+			// If the error reads like this:
+			// `variable env.FOO not defined`
+			// then we're in the error condition identified in the header comment. Ignore the error, write the contents
+			// of the template section to our template buffer and go on to the next loop.
+			if strings.Contains(err.Error(), "not defined") {
+				reformedTemplate.WriteString(section)
+				continue
+			} else {
+				_, file, line, _ := runtime.Caller(0)
+				return "", fmt.Errorf("%s:%d: %v", file, line, err)
+			}
+		}
+
+		// Execute the template with the data
+		var buffer bytes.Buffer
+		err = tmpl.Execute(&buffer, templateVariableDefinitions)
+
+		if err != nil {
+			_, file, line, _ := runtime.Caller(0)
+			return buffer.String(), fmt.Errorf("%s:%d: %v", file, line, err)
+		}
+
+		reformedTemplate.Write(buffer.Bytes())
 	}
 
-	// Execute the template with the data
-	var buffer bytes.Buffer
-	err = tmpl.Execute(&buffer, templateVariables)
+	return reformedTemplate.String(), nil
+}
 
-	if err != nil && !strings.Contains(err.Error(), "not defined") {
-		_, file, line, _ := runtime.Caller(0)
-		return buffer.String(), fmt.Errorf("%s:%d: %v", file, line, err)
+func getTemplateVariablesFromYamlFile(templateVariablesFilePath string) (map[string]string, error) {
+	// Read the YAML file
+	yamlFile, err := os.ReadFile(templateVariablesFilePath)
+	if err != nil {
+		logrus.Error("Failed to read YAML file at path <", templateVariablesFilePath, "> Err is: ", err)
+		return nil, err
 	}
 
-	return buffer.String(), nil
+	// Create a map to store the parsed YAML data
+	data := make(map[string]string)
+
+	// Unmarshal the YAML data into the map
+	err = yaml.Unmarshal(yamlFile, &data)
+
+	if err != nil {
+		logrus.Error("Failed to unmarshal YAML: ", err)
+		return nil, err
+	}
+
+	return data, err
 }
 
 func validateTemplatesExist(templateFiles []string) error {
@@ -299,4 +273,61 @@ func validateTemplatesExist(templateFiles []string) error {
 	}
 
 	return nil
+}
+
+// TODO: Why do template rendering functions care where the files are? Move this to main or somewhere.
+// findFilesByName searches a directory for file names that match those provided in a set of strings.
+// Arguments:
+// root: the directory to search
+// names: a set of filenames to search for
+// Returns:
+// an array of strings, each of which is the path to a file that was found.
+// or an error
+func findFilesByName(root string, names []string) ([]string, error) {
+	foundFiles := []string{}
+
+	logrus.Debug("Outside filepath.Walk function names: ", names)
+
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		logrus.Debug("Inside filepath.Walk function names: ", names)
+
+		// If the file's name is in the set of names
+		for _, name := range names {
+			logrus.Debug("name is <", name, "> path is <", path, ">")
+			if strings.Contains(path, name) {
+				foundFiles = append(foundFiles, path)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return foundFiles, nil
+}
+
+func convertFromArrayToKeymap(input []string) (map[string]string, error) {
+	k := make(map[string]string)
+
+	for _, arg := range input {
+		if !strings.Contains(arg, "=") {
+			_, file, line, _ := runtime.Caller(0)
+
+			message := fmt.Sprintf("%s:%d: Argument <%s> not formatted as FOO=BAR", file, line, arg)
+			err := TemplateVariableErr{ErrorMessage: message}
+			return k, err
+		}
+
+		s := strings.Split(arg, "=")
+		k[s[0]] = s[1]
+	}
+
+	return k, nil
 }

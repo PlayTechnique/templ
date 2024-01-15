@@ -1,5 +1,10 @@
 #!/bin/bash -elx
 
+#This shell script runs several integration tests in a row.
+#1. It verifies `templ fetch` works as expected, cloning a git repository.
+#2. It validates that running `templ <an existing template>` renders that template to stdout.
+#3. Finally, it verifies that running `templ <an existing template>=<a config file>` will populate the variables in the
+#    template from the config file.
 cd "${GITHUB_WORKSPACE}"
 
 templ -fetch https://github.com/PlayTechnique/templ_templates
