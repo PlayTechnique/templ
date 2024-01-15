@@ -7,7 +7,7 @@
 #    template from the config file.
 cd "${GITHUB_WORKSPACE}"
 
-templ -fetch https://github.com/PlayTechnique/templ_templates
+templ -f https://github.com/PlayTechnique/templ_templates
 
 echo "Output the fetch charts script to stdout."
 # This is a partial name match for a file in templ_templates
