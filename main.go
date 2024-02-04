@@ -58,7 +58,7 @@ func main() {
 		if len(input) > 0 {
 
 			variableDefinitions := flag.Args()
-			hydratedTemplate, err := templates.RenderFromString(string(input), variableDefinitions)
+			hydratedTemplate, err := templates.RenderFromStdin(string(input), variableDefinitions)
 
 			if err != nil {
 				_, file, line, _ := runtime.Caller(0)
@@ -83,7 +83,6 @@ func main() {
 			fmt.Println(file)
 		}
 
-		os.Exit(0)
 	}
 
 	// If the user has provided a url, clone the repo
@@ -112,7 +111,14 @@ func main() {
 		}
 	}
 
-	err := templates.Render(flag.Args())
+	templateFilePaths, templateVariablesFilesPaths, err := templates.ParseArgvArguments(flag.Args())
+
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		panic(fmt.Errorf("%s:%d: %v", file, line, err))
+	}
+
+	err = templates.RenderFromFiles(templateFilePaths, templateVariablesFilesPaths)
 
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)

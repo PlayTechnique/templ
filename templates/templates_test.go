@@ -1,12 +1,24 @@
 package templates_test
 
 import (
+	"errors"
 	"templ/templates"
 	"testing"
 )
 
+func TestTemplateVariableErr(t *testing.T) {
+	e := templates.TemplateVariableErr{ErrorMessage: "test string"}
+	if e.Error() != "test string" {
+		t.Errorf("TemplateVariableErr not populating correctly. Expected 'test string', got %s", e.Error())
+	}
+
+	if !errors.Is(e, templates.TemplateVariableErr{}) {
+		t.Errorf("TemplateVariableErr not responding as the correct type.")
+	}
+}
+
 func TestRenderFromStringWithEmptyString(t *testing.T) {
-	hydratedTemplate, err := templates.RenderFromString("", []string{})
+	hydratedTemplate, err := templates.RenderFromStdin("", []string{})
 
 	if err != nil {
 		t.Errorf("%v", err)
@@ -21,7 +33,7 @@ func TestRenderFromStringWithPlainString(t *testing.T) {
 	template := `
 I love humans
 `
-	hydratedTemplate, err := templates.RenderFromString(template, []string{})
+	hydratedTemplate, err := templates.RenderFromStdin(template, []string{})
 
 	if err != nil {
 		t.Errorf("%v", err)
@@ -36,7 +48,7 @@ func TestRenderFromStringWithTemplateContainingAVariableButNoVariables(t *testin
 	template := `I love {{ .SPECIES }}`
 
 	templateVariables := []string{}
-	hydratedTemplate, err := templates.RenderFromString(template, templateVariables)
+	hydratedTemplate, err := templates.RenderFromStdin(template, templateVariables)
 
 	if err != nil {
 		t.Errorf("%v", err)
@@ -51,7 +63,7 @@ func TestRenderFromStringWithVariablesAndDefinitions(t *testing.T) {
 	template := `I love {{ .SPECIES }}`
 
 	templateVariables := []string{"SPECIES=HUMAN"}
-	hydratedTemplate, err := templates.RenderFromString(template, templateVariables)
+	hydratedTemplate, err := templates.RenderFromStdin(template, templateVariables)
 
 	if err != nil {
 		t.Errorf("%v", err)
@@ -76,7 +88,7 @@ jobs:
           ref: ${{ env.GITHUB_REF }}
 `
 	templateVariables := []string{"BINARY_NAME=ROFLCOPTER"}
-	hydratedTemplate, err := templates.RenderFromString(template, templateVariables)
+	hydratedTemplate, err := templates.RenderFromStdin(template, templateVariables)
 	if err != nil {
 		t.Errorf("%v", err)
 	}

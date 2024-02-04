@@ -28,27 +28,7 @@ func (t TemplateVariableErr) Is(target error) bool {
 	return ok
 }
 
-func Render(templates []string) error {
-	//TODO: template rendering has no business understanding parsing argv. Move parseArgvArguments out into
-	//TODO: main and call it something like "prepRenderArguments".
-	templateFilePaths, templateVariablesFilesPaths, err := parseArgvArguments(templates)
-
-	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return fmt.Errorf("%s:%d: %v", file, line, err)
-	}
-
-	err = renderFromFiles(templateFilePaths, templateVariablesFilesPaths)
-
-	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return fmt.Errorf("%s:%d: %v", file, line, err)
-	}
-
-	return nil
-}
-
-func RenderFromString(template string, variableDefinitions []string) (hydratedtemplate string, err error) {
+func RenderFromStdin(template string, variableDefinitions []string) (hydratedtemplate string, err error) {
 	// If we don't receive any arguments, just pass back up the chain.
 	if len(variableDefinitions) == 0 {
 		return template, nil
@@ -65,7 +45,7 @@ func RenderFromString(template string, variableDefinitions []string) (hydratedte
 	return
 }
 
-func parseArgvArguments(argv []string) ([]string, map[string]string, error) {
+func ParseArgvArguments(argv []string) ([]string, map[string]string, error) {
 	// Data structures to store paths to the template files. These may optionally have an associated variables file to hydrate with.
 	var templateFilePaths = make([]string, 0)
 	var templateVariablesFilesPaths = make(map[string]string, 0)
@@ -111,7 +91,7 @@ func parseArgvArguments(argv []string) ([]string, map[string]string, error) {
 	return templateFilePaths, templateVariablesFilesPaths, nil
 }
 
-func renderFromFiles(templateFiles []string, templateVariables map[string]string) error {
+func RenderFromFiles(templateFiles []string, templateVariables map[string]string) error {
 	err := validateTemplatesExist(templateFiles)
 
 	if err != nil {
