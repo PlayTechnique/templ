@@ -29,7 +29,12 @@ func main() {
 		"will populate the template file's variables. If no variables file is provided, the utility"+
 		"operates like 'cat' on the file, printing it to stdout.\n\n"+
 		"This utility can also be called in a pipeline as %s templatename | %s FOO=BAR BAM=BAS, for folks who"+
-		"prefer not to have a variables file.\n\n",
+		"prefer not to have a variables file.\n\n"+
+		"Templates can be stored in a git repository and downloaded with `templ -f https://path/to/git/repository.git`."+
+		"git repository download support is provided by the awesome https://github.com/go-git/, and all protocols are supported."+
+		"Only a `git pull` operation is supported - edit your templates with a text editor, commit to git, and"+
+		" run `templ -u` to update your templates.\n\n"+
+		"templ also supports project layouts. Supply a yaml file listing template names and template definition files.\n",
 		filepath.Base(os.Args[0]), filepath.Base(os.Args[0]), filepath.Base(os.Args[0]))
 
 	flag.Usage = func() { fmt.Println(usage); flag.PrintDefaults(); return }
