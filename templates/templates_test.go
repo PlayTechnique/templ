@@ -17,7 +17,7 @@ func TestTemplateVariableErr(t *testing.T) {
 	}
 }
 
-func TestRenderFromStringWithEmptyString(t *testing.T) {
+func TestRenderFromStdinWithEmptyString(t *testing.T) {
 	hydratedTemplate, err := templates.RenderFromStdin("", []string{})
 
 	if err != nil {
@@ -29,7 +29,7 @@ func TestRenderFromStringWithEmptyString(t *testing.T) {
 	}
 }
 
-func TestRenderFromStringWithPlainString(t *testing.T) {
+func TestRenderFromStdingWithPlainString(t *testing.T) {
 	template := `
 I love humans
 `
@@ -44,7 +44,7 @@ I love humans
 	}
 }
 
-func TestRenderFromStringWithTemplateContainingAVariableButNoVariables(t *testing.T) {
+func TestRenderFromStdinWithTemplateContainingAVariableButNoVariables(t *testing.T) {
 	template := `I love {{ .SPECIES }}`
 
 	templateVariables := []string{}
@@ -59,7 +59,7 @@ func TestRenderFromStringWithTemplateContainingAVariableButNoVariables(t *testin
 	}
 }
 
-func TestRenderFromStringWithVariablesAndDefinitions(t *testing.T) {
+func TestRenderFromStdinWithVariablesAndDefinitions(t *testing.T) {
 	template := `I love {{ .SPECIES }}`
 
 	templateVariables := []string{"SPECIES=HUMAN"}
@@ -72,6 +72,17 @@ func TestRenderFromStringWithVariablesAndDefinitions(t *testing.T) {
 	expected := "I love HUMAN"
 	if hydratedTemplate != expected {
 		t.Errorf("Expected <%s>, received <%s>", expected, hydratedTemplate)
+	}
+}
+
+func TestRenderFromStdinWithVariablesAndInvalidDefinitions(t *testing.T) {
+	template := `I love {{ .SPECIES }}`
+
+	templateVariables := []string{"SPECIES HUMAN"}
+	_, err := templates.RenderFromStdin(template, templateVariables)
+
+	if !errors.Is(err, templates.TemplateVariableErr{}) {
+		t.Errorf("Using an invalid variables string should raise a templatevariableerror, actually got %v", err)
 	}
 }
 

@@ -2,13 +2,14 @@ package test_helpers
 
 import (
 	"fmt"
-	"github.com/go-git/go-git/v5"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"templ/repository"
 	"testing"
+
+	"github.com/go-git/go-git/v5"
 )
 
 func CleanUpTemplDir(tempDir string, t *testing.T) {
@@ -56,7 +57,7 @@ func CreateTemplDirWithMultipleRepositories(cloneDestinations []string) (tempDir
 		})
 		if err != nil {
 			_, file, line, _ := runtime.Caller(0)
-			return tempDir, repositories, fmt.Errorf("%s:%d: %v:", file, line, err)
+			return tempDir, repositories, fmt.Errorf("%s:%d: %v", file, line, err)
 		}
 
 		fmt.Printf("%v", dest)

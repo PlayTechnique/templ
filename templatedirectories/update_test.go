@@ -40,17 +40,21 @@ func TestFindingNoGitRepositories(t *testing.T) {
 	sort.Strings(expectedRepositories)
 
 	if err != nil {
-		t.Errorf("%v", err)
+		t.Fatal(err)
 	}
 
 	defer test_helpers.CleanUpTemplDir(templDir, t)
 	err = os.Setenv("TEMPL_DIR", templDir)
 
 	if err != nil {
-		t.Errorf("%v", err)
+		t.Fatal(err)
 	}
 
 	repositories, err := templatedirectories.FindRepositories()
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if repositories != nil {
 		t.Errorf("Should have found no template directories, found %v", repositories)

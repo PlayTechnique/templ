@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -13,6 +11,9 @@ import (
 	"strings"
 	"templ/configelements"
 	"text/template"
+
+	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
 )
 
 type TemplateVariableErr struct {
@@ -45,7 +46,7 @@ func RenderFromStdin(template string, variableDefinitions []string) (hydratedtem
 	return
 }
 
-func ParseArgvArguments(argv []string) ([]string, map[string]string, error) {
+func FindTemplateAndVariableFiles(argv []string) ([]string, map[string]string, error) {
 	// Data structures to store paths to the template files. These may optionally have an associated variables file to hydrate with.
 	var templateFilePaths = make([]string, 0)
 	var templateVariablesFilesPaths = make(map[string]string, 0)
@@ -59,17 +60,18 @@ func ParseArgvArguments(argv []string) ([]string, map[string]string, error) {
 		// interrogate each path from args to split into either a set of strings or a path+string
 		// then use findFilesByName to find the templates associated with those strings
 		variablesFile := false
-		var templateVariablesFilePath string
+		var template string
+		var templateVariablesPath string
 
 		if strings.Contains(path, "=") {
 			variablesFile = true
-			templatePathAndVariablesPath := strings.Split(path, "=")
-			path = templatePathAndVariablesPath[0]
-			templateVariablesFilePath = templatePathAndVariablesPath[1]
+			templateAndVariablesPath := strings.Split(path, "=")
+			template = templateAndVariablesPath[0]
+			templateVariablesPath = templateAndVariablesPath[1]
 		}
 
 		//temp variable to prevent variable shadowing.
-		t, err := findFilesByName(configelements.NewTemplDir().TemplatesDir, []string{path})
+		t, err := findFilesByName(configelements.NewTemplDir().TemplatesDir, []string{template})
 
 		if err != nil {
 			logrus.Error(err)
@@ -84,7 +86,7 @@ func ParseArgvArguments(argv []string) ([]string, map[string]string, error) {
 			templateFilePaths = append(templateFilePaths, p)
 
 			if variablesFile {
-				templateVariablesFilesPaths[p] = templateVariablesFilePath
+				templateVariablesFilesPaths[p] = templateVariablesPath
 			}
 		}
 	}
@@ -106,7 +108,7 @@ func RenderFromFiles(templateFiles []string, templateVariables map[string]string
 
 		// No variables? Just print and move on.
 		if templateVariablesFilePath == "" {
-			content, err := os.ReadFile(string(templatePath))
+			content, err := os.ReadFile(templatePath)
 
 			if err != nil {
 				_, file, line, _ := runtime.Caller(0)
@@ -247,14 +249,14 @@ func validateTemplatesExist(templateFiles []string) error {
 	for _, templateFilePath := range templateFiles {
 		logrus.Debug(" variable:", string(templateFilePath))
 		file, err := os.OpenFile(string(templateFilePath), os.O_RDONLY, 0644)
-		defer file.Close()
-
+		// The argument is not a file, which can be normal, but if
+		// raise if the file doesn't exist
 		if errors.Is(err, os.ErrNotExist) {
-			// The argument is not a file. Proceed to
-			// handle the case where the file doesn't exist
-			err = fmt.Errorf("File %s does not exist: %v", templateFilePath, err)
+			err = fmt.Errorf("file %s does not exist: %v", templateFilePath, err)
 			return err
 		}
+
+		defer file.Close()
 
 	}
 

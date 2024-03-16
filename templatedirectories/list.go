@@ -2,13 +2,14 @@ package templatedirectories
 
 import (
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
 	"templ/configelements"
+
+	"github.com/sirupsen/logrus"
 )
 
 // List lists the template files in the templates directory.
@@ -18,6 +19,10 @@ func List() ([]string, error) {
 	templDir := configelements.NewTemplDir().TemplatesDir
 
 	err := filepath.Walk(templDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
 		filename, err := filepath.Rel(templDir, path)
 
 		if err != nil {

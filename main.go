@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"golang.org/x/term"
 	"io"
 	"os"
 	"path/filepath"
@@ -12,6 +11,8 @@ import (
 	"templ/repository"
 	"templ/templatedirectories"
 	"templ/templates"
+
+	"golang.org/x/term"
 )
 
 func init() {
@@ -37,7 +38,7 @@ func main() {
 		"templ also supports project layouts. Supply a yaml file listing template names and template definition files.\n",
 		filepath.Base(os.Args[0]), filepath.Base(os.Args[0]), filepath.Base(os.Args[0]))
 
-	flag.Usage = func() { fmt.Println(usage); flag.PrintDefaults(); return }
+	flag.Usage = func() { fmt.Println(usage); flag.PrintDefaults() }
 	flag.Parse()
 
 	fd := os.Stdin.Fd()
@@ -111,7 +112,7 @@ func main() {
 		}
 	}
 
-	templateFilePaths, templateVariablesFilesPaths, err := templates.ParseArgvArguments(flag.Args())
+	templateFilePaths, templateVariablesFilesPaths, err := templates.FindTemplateAndVariableFiles(flag.Args())
 
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
