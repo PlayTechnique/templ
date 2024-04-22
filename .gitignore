@@ -3,3 +3,4 @@ scratch_templ_dir
 **/templ
 templ
 templ-config-files
+.vscode

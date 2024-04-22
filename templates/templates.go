@@ -51,7 +51,7 @@ func FindTemplateAndVariableFiles(argv []string) ([]string, map[string]string, e
 	var templateFilePaths = make([]string, 0)
 	var templateVariablesFilesPaths = make(map[string]string, 0)
 
-	for _, path := range argv {
+	for _, template := range argv {
 		// The arguments at this point either read as a name/of/template_file, or as name/of/template_file=path/to/variables.
 		// In the first case, I want to store the path to the template file in an array to hand in to the renderFromFiles command.
 		// In the second case, we store the path to the template file in the same array, and also use that path as an
@@ -60,12 +60,11 @@ func FindTemplateAndVariableFiles(argv []string) ([]string, map[string]string, e
 		// interrogate each path from args to split into either a set of strings or a path+string
 		// then use findFilesByName to find the templates associated with those strings
 		variablesFile := false
-		var template string
 		var templateVariablesPath string
 
-		if strings.Contains(path, "=") {
+		if strings.Contains(template, "=") {
 			variablesFile = true
-			templateAndVariablesPath := strings.Split(path, "=")
+			templateAndVariablesPath := strings.Split(template, "=")
 			template = templateAndVariablesPath[0]
 			templateVariablesPath = templateAndVariablesPath[1]
 		}
@@ -108,7 +107,7 @@ func RenderFromFiles(templateFiles []string, templateVariables map[string]string
 
 		// No variables? Just print and move on.
 		if templateVariablesFilePath == "" {
-			content, err := os.ReadFile(templatePath)
+			content, err := os.ReadFile(string(templatePath))
 
 			if err != nil {
 				_, file, line, _ := runtime.Caller(0)
