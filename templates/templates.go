@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -41,7 +42,7 @@ func RenderFromStdin(template string, variableDefinitions []string) (hydratedtem
 		return "", err
 	}
 
-	hydratedtemplate, err = renderFromString(template, variables)
+	hydratedtemplate, err = renderFromString("stdin", template, variables)
 
 	return
 }
@@ -139,7 +140,7 @@ func RenderFromFiles(templateFiles []string, templateVariables map[string]string
 
 		// Convert template file content to a string
 		templateText := string(templateContents)
-		output, err := renderFromString(templateText, templateVariables)
+		output, err := renderFromString(templatePath, templateText, templateVariables)
 
 		if err != nil {
 			_, file, line, _ := runtime.Caller(0)
@@ -171,15 +172,15 @@ func RenderFromFiles(templateFiles []string, templateVariables map[string]string
 // Solution:
 // To work around this, templ splits all incoming files on the string '{{'. It then either successfully substitutes
 // a variable or it ignores any error rendering that subsection. Tada!
-func renderFromString(templateText string, templateVariableDefinitions map[string]string) (string, error) {
+func renderFromString(templatePath string, templateText string, templateVariableDefinitions map[string]string) (string, error) {
 
 	templateSections := strings.SplitAfter(templateText, "}}")
 	var reformedTemplate bytes.Buffer
 
+	templateName := path.Base(templatePath)
+
 	for i, section := range templateSections {
-		// Create a new template and parse the template text
-		// TODO: use the filename as the template name
-		name := "roflcopter" + strconv.Itoa(i)
+		name := templateName + strconv.Itoa(i)
 
 		tmpl, err := template.New(name).Parse(section)
 
