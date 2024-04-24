@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -151,6 +152,22 @@ func RenderFromFiles(templateFiles []string, templateVariables map[string]string
 	}
 
 	return nil
+}
+
+// RetrieveVariables accepts the content of a template and returns an array of.
+// strings that match {{ FOO }} format, but not with formats like ${{ FOO }}
+func RetrieveVariables(templateContent string) []string {
+	// Regular expression for strict matches: only `{{ .Identifier }}`
+	strictRe := regexp.MustCompile(`{{\s*\.([^}\s]+)\s*}}`)
+	strictMatches := strictRe.FindAllStringSubmatch(templateContent, -1)
+
+	matches := []string{}
+
+	for _, section := range strictMatches {
+		matches = append(matches, section[1])
+	}
+
+	return matches
 }
 
 // renderFromString takes a string containing a template, and a map of FOO=bar definitions and returns

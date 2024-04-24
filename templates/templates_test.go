@@ -2,6 +2,7 @@ package templates_test
 
 import (
 	"errors"
+	"slices"
 	"templ/templates"
 	"testing"
 )
@@ -116,5 +117,25 @@ jobs:
 `
 	if hydratedTemplate != expected {
 		t.Errorf("Expected <%s>, received <%s>", expected, hydratedTemplate)
+	}
+}
+
+func TestCanParseTemplateVariablesFromATemplateWithoutInvalidTemplateVariables(t *testing.T) {
+	template := `
+jobs:
+  build-and-release-tag:
+    env:
+      OUTPUT_BINARY: {{ .BINARY_NAME }}
+    steps:
+      - name: "checkout"
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ env.GITHUB_REF }}
+`
+	templateVariables := templates.RetrieveVariables(template)
+	expected := []string{"BINARY_NAME"}
+
+	if !slices.Equal(templateVariables, expected) {
+		t.Errorf("Expected <%s>, received <%s>", expected, templateVariables)
 	}
 }
