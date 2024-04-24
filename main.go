@@ -23,6 +23,7 @@ func main() {
 	list := flag.Bool("l", false, "list available templates and exit.")
 	update := flag.Bool("u", false, "iterate over template repositories, calling git update.")
 	url := flag.String("f", "", "clone/fetch a git repository from a url. Can be a github url or a local git repository.")
+	variables := flag.Bool("v", false, "show only the variables from a file. If encountered, this will execute and exit.")
 
 	usage := fmt.Sprintf("%s <templatename || templatename=variablesfile.yaml> <flags>\n\n"+
 		"<templatename> can come in one of two forms. First is a template filename,"+
@@ -50,6 +51,11 @@ func main() {
 		if err != nil {
 			_, file, line, _ := runtime.Caller(0)
 			panic(fmt.Errorf("%s:%d: %v", file, line, err))
+		}
+
+		if *variables {
+			templates.RetrieveVariables(string(input))
+			os.Exit(0)
 		}
 
 		// There are 2 conditions that reach this line. The first is that we're piping input into templ.
@@ -110,6 +116,35 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+	}
+
+	if *variables {
+		templateFilePaths, _, err := templates.FindTemplateAndVariableFiles(flag.Args())
+
+		if err != nil {
+			panic(err)
+		}
+
+		for _, file := range templateFilePaths {
+			content, err := os.ReadFile(file)
+
+			if err != nil {
+				panic(err)
+			}
+
+			variables := templates.RetrieveVariables(string(content))
+
+			if len(variables) == 0 {
+				fmt.Printf("No variables detected in %s\n", file)
+			} else {
+
+				for _, variable := range variables {
+					fmt.Println(variable)
+				}
+			}
+
+		}
+		os.Exit(0)
 	}
 
 	templateFilePaths, templateVariablesFilesPaths, err := templates.FindTemplateAndVariableFiles(flag.Args())

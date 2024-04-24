@@ -139,3 +139,15 @@ jobs:
 		t.Errorf("Expected <%s>, received <%s>", expected, templateVariables)
 	}
 }
+
+func TestCanParseMultipleTemplateVariablesFromASingleLine(t *testing.T) {
+	template := `
+{{ .ONE }} {{ .TWO }}
+`
+	templateVariables := templates.RetrieveVariables(template)
+	expected := []string{"ONE", "TWO"}
+
+	if !slices.Equal(templateVariables, expected) {
+		t.Errorf("Expected <%s>, received <%s>", expected, templateVariables)
+	}
+}

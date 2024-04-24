@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"templ/configelements"
@@ -164,7 +165,9 @@ func RetrieveVariables(templateContent string) []string {
 	matches := []string{}
 
 	for _, section := range strictMatches {
-		matches = append(matches, section[1])
+		if !slices.Contains(matches, section[1]) {
+			matches = append(matches, section[1])
+		}
 	}
 
 	return matches
